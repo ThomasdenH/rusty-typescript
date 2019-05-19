@@ -185,3 +185,8 @@ pub fn get_operator_precedence_js(
     )
     .0
 }
+
+#[wasm_bindgen(js_name=getPropertyNameForKnownSymbolName)]
+pub fn get_property_name_for_known_symbol_name(symbol_name: &str) -> String {
+    "__@".to_string() + symbol_name
+}

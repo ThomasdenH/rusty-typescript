@@ -2770,7 +2770,7 @@ namespace ts {
     }
 
     export function getPropertyNameForKnownSymbolName(symbolName: string): __String {
-        return "__@" + symbolName as __String;
+        return RustyTypeScript.getPropertyNameForKnownSymbolName(symbolName) as __String;
     }
 
     export function isKnownSymbol(symbol: Symbol): boolean {
