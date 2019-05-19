@@ -7151,19 +7151,7 @@ namespace ts {
     }
 
     export function hasZeroOrOneAsteriskCharacter(str: string): boolean {
-        let seenAsterisk = false;
-        for (let i = 0; i < str.length; i++) {
-            if (str.charCodeAt(i) === CharacterCodes.asterisk) {
-                if (!seenAsterisk) {
-                    seenAsterisk = true;
-                }
-                else {
-                    // have already seen asterisk
-                    return false;
-                }
-            }
-        }
-        return true;
+        return RustyTypeScript.hasZeroOrOneAsteriskCharacter(str);
     }
 
     /**
@@ -7180,7 +7168,7 @@ namespace ts {
      * Normalize path separators.
      */
     export function normalizeSlashes(path: string): string {
-        return path.replace(backslashRegExp, directorySeparator);
+        return RustyTypeScript.normalizeSlashes(path);
     }
 
     function isVolumeCharacter(charCode: number) {

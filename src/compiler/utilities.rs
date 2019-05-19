@@ -190,3 +190,23 @@ pub fn get_operator_precedence_js(
 pub fn get_property_name_for_known_symbol_name(symbol_name: &str) -> String {
     "__@".to_string() + symbol_name
 }
+
+#[wasm_bindgen(js_name=hasZeroOrOneAsteriskCharacter)]
+pub fn has_zero_or_one_asterisk_character(s: &str) -> bool {
+    let mut has_seen_asterisk = false;
+    for ch in s.chars() {
+        if ch == '*' {
+            if has_seen_asterisk {
+                return false;
+            } else {
+                has_seen_asterisk = true;
+            }
+        }
+    }
+    return true;
+}
+
+#[wasm_bindgen(js_name = normalizeSlashes)]
+pub fn normalize_slashes(path: String) -> String {
+    path.replace("\\", "/")
+}
