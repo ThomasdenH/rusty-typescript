@@ -1,9 +1,13 @@
 use num_derive::FromPrimitive;
 
+pub mod node;
+pub mod node_array;
+pub mod node_flags;
 pub mod pseudobigint;
+pub mod text_range;
 pub mod textspan;
 
-#[derive(FromPrimitive)]
+#[derive(FromPrimitive, Copy, Clone, Eq, PartialEq)]
 pub enum SyntaxKind {
     Unknown = 0,
     EndOfFileToken,
