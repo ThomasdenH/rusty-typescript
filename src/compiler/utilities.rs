@@ -1,5 +1,5 @@
 use crate::types::SyntaxKind;
-use num_traits::FromPrimitive;
+use num_traits::{FromPrimitive, ToPrimitive};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(js_name = isPinnedComment)]
@@ -9,6 +9,64 @@ pub fn is_pinned_comment(text: &str, start: usize) -> bool {
 
 #[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
 pub struct Precedence(i8);
+
+#[derive(num_derive::FromPrimitive, num_derive::ToPrimitive, Eq, PartialEq, Copy, Clone)]
+pub enum Associativity {
+    Left = 0,
+    Right = 1,
+}
+
+pub fn get_operator_associativity(
+    kind: SyntaxKind,
+    operator: SyntaxKind,
+    has_arguments: bool,
+) -> Associativity {
+    use SyntaxKind::*;
+    match kind {
+        NewExpression => {
+            if has_arguments {
+                Associativity::Left
+            } else {
+                Associativity::Right
+            }
+        }
+        PrefixUnaryExpression
+        | TypeOfExpression
+        | VoidExpression
+        | DeleteExpression
+        | AwaitExpression
+        | ConditionalExpression
+        | YieldExpression => Associativity::Right,
+        BinaryExpression => match operator {
+            AsteriskAsteriskToken
+            | EqualsToken
+            | PlusEqualsToken
+            | MinusEqualsToken
+            | AsteriskAsteriskEqualsToken
+            | AsteriskEqualsToken
+            | SlashEqualsToken
+            | PercentEqualsToken
+            | LessThanLessThanEqualsToken
+            | GreaterThanGreaterThanEqualsToken
+            | GreaterThanGreaterThanGreaterThanEqualsToken
+            | AmpersandEqualsToken
+            | CaretEqualsToken
+            | BarEqualsToken => Associativity::Right,
+            _ => Associativity::Left,
+        },
+        _ => Associativity::Left,
+    }
+}
+
+#[wasm_bindgen(js_name=getOperatorAssociativity)]
+pub fn get_operator_associativity_js(kind: u32, operator: u32, has_arguments: Option<bool>) -> u8 {
+    let kind: SyntaxKind = FromPrimitive::from_u32(kind).unwrap();
+    let operator: SyntaxKind = FromPrimitive::from_u32(operator).unwrap();
+    let has_arguments = has_arguments.unwrap_or(false);
+    get_operator_associativity(kind, operator, has_arguments)
+        .to_u8()
+        .unwrap()
+}
 
 pub fn get_binary_operator_precedence(kind: SyntaxKind) -> Precedence {
     use SyntaxKind::*;

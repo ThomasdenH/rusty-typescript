@@ -2833,40 +2833,8 @@ namespace ts {
         return getOperatorAssociativity(expression.kind, operator, hasArguments);
     }
 
-    export function getOperatorAssociativity(kind: SyntaxKind, operator: SyntaxKind, hasArguments?: boolean) {
-        switch (kind) {
-            case SyntaxKind.NewExpression:
-                return hasArguments ? Associativity.Left : Associativity.Right;
-
-            case SyntaxKind.PrefixUnaryExpression:
-            case SyntaxKind.TypeOfExpression:
-            case SyntaxKind.VoidExpression:
-            case SyntaxKind.DeleteExpression:
-            case SyntaxKind.AwaitExpression:
-            case SyntaxKind.ConditionalExpression:
-            case SyntaxKind.YieldExpression:
-                return Associativity.Right;
-
-            case SyntaxKind.BinaryExpression:
-                switch (operator) {
-                    case SyntaxKind.AsteriskAsteriskToken:
-                    case SyntaxKind.EqualsToken:
-                    case SyntaxKind.PlusEqualsToken:
-                    case SyntaxKind.MinusEqualsToken:
-                    case SyntaxKind.AsteriskAsteriskEqualsToken:
-                    case SyntaxKind.AsteriskEqualsToken:
-                    case SyntaxKind.SlashEqualsToken:
-                    case SyntaxKind.PercentEqualsToken:
-                    case SyntaxKind.LessThanLessThanEqualsToken:
-                    case SyntaxKind.GreaterThanGreaterThanEqualsToken:
-                    case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
-                    case SyntaxKind.AmpersandEqualsToken:
-                    case SyntaxKind.CaretEqualsToken:
-                    case SyntaxKind.BarEqualsToken:
-                        return Associativity.Right;
-                }
-        }
-        return Associativity.Left;
+    export function getOperatorAssociativity(kind: SyntaxKind, operator: SyntaxKind, hasArguments?: boolean): Associativity {
+        return RustyTypeScript.getOperatorAssociativity(kind, operator, hasArguments);
     }
 
     export function getExpressionPrecedence(expression: Expression) {
