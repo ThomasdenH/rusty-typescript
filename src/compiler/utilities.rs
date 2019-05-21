@@ -1,8 +1,5 @@
-use crate::types::SyntaxKind;
-use num_traits::{FromPrimitive, ToPrimitive};
-use wasm_bindgen::prelude::*;
+use crate::compiler::types::SyntaxKind;
 
-#[wasm_bindgen(js_name = isPinnedComment)]
 pub fn is_pinned_comment(text: &str, start: usize) -> bool {
     text.chars().nth(start + 1) == Some('*') && text.chars().nth(start + 2) == Some('!')
 }
@@ -58,16 +55,6 @@ pub fn get_operator_associativity(
     }
 }
 
-#[wasm_bindgen(js_name=getOperatorAssociativity)]
-pub fn get_operator_associativity_js(kind: u32, operator: u32, has_arguments: Option<bool>) -> u8 {
-    let kind: SyntaxKind = FromPrimitive::from_u32(kind).unwrap();
-    let operator: SyntaxKind = FromPrimitive::from_u32(operator).unwrap();
-    let has_arguments = has_arguments.unwrap_or(false);
-    get_operator_associativity(kind, operator, has_arguments)
-        .to_u8()
-        .unwrap()
-}
-
 pub fn get_binary_operator_precedence(kind: SyntaxKind) -> Precedence {
     use SyntaxKind::*;
     Precedence(match kind {
@@ -97,11 +84,6 @@ pub fn get_binary_operator_precedence(kind: SyntaxKind) -> Precedence {
         // parsing to stop.
         _ => -1,
     })
-}
-
-#[wasm_bindgen(js_name = getBinaryOperatorPrecedence)]
-pub fn get_binary_operator_precedence_js(kind: u32) -> i8 {
-    get_binary_operator_precedence(FromPrimitive::from_u32(kind).unwrap()).0
 }
 
 pub fn get_operator_precedence(
@@ -172,26 +154,10 @@ pub fn get_operator_precedence(
     })
 }
 
-#[wasm_bindgen(js_name = getOperatorPrecedence)]
-pub fn get_operator_precedence_js(
-    node_kind: u32,
-    operator_kind: u32,
-    has_arguments: Option<bool>,
-) -> i8 {
-    get_operator_precedence(
-        FromPrimitive::from_u32(node_kind).unwrap(),
-        FromPrimitive::from_u32(operator_kind).unwrap(),
-        has_arguments.unwrap_or(false),
-    )
-    .0
-}
-
-#[wasm_bindgen(js_name=getPropertyNameForKnownSymbolName)]
 pub fn get_property_name_for_known_symbol_name(symbol_name: &str) -> String {
     "__@".to_string() + symbol_name
 }
 
-#[wasm_bindgen(js_name=hasZeroOrOneAsteriskCharacter)]
 pub fn has_zero_or_one_asterisk_character(s: &str) -> bool {
     let mut has_seen_asterisk = false;
     for ch in s.chars() {
@@ -206,7 +172,61 @@ pub fn has_zero_or_one_asterisk_character(s: &str) -> bool {
     return true;
 }
 
-#[wasm_bindgen(js_name = normalizeSlashes)]
 pub fn normalize_slashes(path: String) -> String {
     path.replace("\\", "/")
+}
+
+#[cfg(feature = "wasm")]
+mod wasm {
+    use wasm_bindgen::prelude::*;
+
+    
+    #[wasm_bindgen(js_name = isPinnedComment)]
+    pub fn is_pinned_comment(text: &str, start: usize) -> bool {
+        super::is_pinned_comment(text, start)
+    }
+
+    #[wasm_bindgen(js_name=getOperatorAssociativity)]
+    pub fn get_operator_associativity(kind: u32, operator: u32, has_arguments: Option<bool>) -> u8 {
+        let kind: SyntaxKind = FromPrimitive::from_u32(kind).unwrap();
+        let operator: SyntaxKind = FromPrimitive::from_u32(operator).unwrap();
+        let has_arguments = has_arguments.unwrap_or(false);
+        super::get_operator_associativity(kind, operator, has_arguments)
+            .to_u8()
+            .unwrap()
+    }
+    
+    #[wasm_bindgen(js_name = normalizeSlashes)]
+    pub fn normalize_slashes(path: String) -> String {
+        super::normalize_slashes(path)
+    }
+    
+    #[wasm_bindgen(js_name = getBinaryOperatorPrecedence)]
+    pub fn get_binary_operator_precedence(kind: u32) -> i8 {
+        super::get_binary_operator_precedence(FromPrimitive::from_u32(kind).unwrap()).0
+    }
+
+    #[wasm_bindgen(js_name = getOperatorPrecedence)]
+    pub fn get_operator_precedence(
+        node_kind: u32,
+        operator_kind: u32,
+        has_arguments: Option<bool>,
+    ) -> i8 {
+        super::get_operator_precedence(
+            FromPrimitive::from_u32(node_kind).unwrap(),
+            FromPrimitive::from_u32(operator_kind).unwrap(),
+            has_arguments.unwrap_or(false),
+        )
+        .0
+    }
+
+    #[wasm_bindgen(js_name=getPropertyNameForKnownSymbolName)]
+    pub fn get_property_name_for_known_symbol_name(symbol_name: &str) -> String {
+        super::get_property_name_for_known_symbol_name(symbol_name)
+    }
+
+    #[wasm_bindgen(js_name=hasZeroOrOneAsteriskCharacter)]
+    pub fn has_zero_or_one_asterisk_character(s: &str) -> bool {
+        super::has_zero_or_one_asterisk_character(s)
+    }
 }

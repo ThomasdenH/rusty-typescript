@@ -1,5 +1,4 @@
-use core::convert::TryFrom;
-use num_derive::*;
+use num_derive::FromPrimitive;
 
 #[derive(FromPrimitive, Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum SyntaxKind {
@@ -367,16 +366,4 @@ pub enum SyntaxKind {
 
     // Enum value count
     Count,
-}
-
-enum SyntaxKindTryFromError {
-    NotASyntaxKind,
-}
-
-impl TryFrom<char> for SyntaxKind {
-    type Error = SyntaxKindTryFromError;
-    fn try_from(c: char) -> Result<SyntaxKind, SyntaxKindTryFromError> {
-        let char_code: u32 = c.into();
-        SyntaxKind::from_u32(char_code).ok_or(SyntaxKindTryFromError::NotASyntaxKind)
-    }
 }

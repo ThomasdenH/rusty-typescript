@@ -1,5 +1,5 @@
-use crate::compiler::types::{CharacterCodes, SyntaxKind};
-use num_traits::FromPrimitive;
+use crate::compiler::types::{CharacterCode, SyntaxKind};
+use std::convert::TryFrom;
 
 const ABSTRACT: &str = "abstract";
 const ANY: &str = "any";
@@ -272,20 +272,21 @@ pub fn token_to_string(token: SyntaxKind) -> Option<&'static str> {
     }
 }
 
-pub fn is_white_space_single_line(charcode: CharacterCodes) -> bool {
-    charcode == CharacterCodes::Space
-        || charcode == CharacterCodes::Tab
-        || charcode == CharacterCodes::VerticalTab
-        || charcode == CharacterCodes::FormFeed
-        || charcode == CharacterCodes::NonBreakingSpace
-        || charcode == CharacterCodes::NextLine
-        || charcode == CharacterCodes::Ogham
-        || charcode >= CharacterCodes::EnQuad && charcode <= CharacterCodes::ZeroWidthSpace
-        || charcode == CharacterCodes::NarrowNoBreakSpace
-        || charcode == CharacterCodes::MathematicalSpace
-        || charcode == CharacterCodes::IdeographicSpace
-        || charcode == CharacterCodes::IdeographicSpace
-        || charcode == CharacterCodes::ByteOrderMark
+pub fn is_white_space_single_line(charcode: CharacterCode) -> bool {
+    use CharacterCode::*;
+    charcode == Space
+        || charcode == Tab
+        || charcode == VerticalTab
+        || charcode == FormFeed
+        || charcode == NonBreakingSpace
+        || charcode == NextLine
+        || charcode == Ogham
+        || charcode >= EnQuad && charcode <= ZeroWidthSpace
+        || charcode == NarrowNoBreakSpace
+        || charcode == MathematicalSpace
+        || charcode == IdeographicSpace
+        || charcode == IdeographicSpace
+        || charcode == ByteOrderMark
 }
 
 /// ES5 7.3:
@@ -298,41 +299,43 @@ pub fn is_white_space_single_line(charcode: CharacterCodes) -> bool {
 ///     \u2029              Paragraph separator     <PS>
 /// Only the characters in Table 3 are treated as line terminators. Other new line or line
 /// breaking characters are treated as white space but not as line terminators.
-pub fn is_line_break(charcode: CharacterCodes) -> bool {
-    charcode == CharacterCodes::LineFeed
-        || charcode == CharacterCodes::CarriageReturn
-        || charcode == CharacterCodes::LineSeparator
-        || charcode == CharacterCodes::ParagraphSeparator
+pub fn is_line_break(charcode: CharacterCode) -> bool {
+    use CharacterCode::*;
+    charcode == LineFeed
+        || charcode == CarriageReturn
+        || charcode == LineSeparator
+        || charcode == ParagraphSeparator
 }
 
-pub fn is_white_space_like(charcode: CharacterCodes) -> bool {
+pub fn is_white_space_like(charcode: CharacterCode) -> bool {
     is_white_space_single_line(charcode) || is_line_break(charcode)
 }
 
 pub fn could_start_trivia(text: &str, pos: usize) -> bool {
+    use CharacterCode::*;
     text.chars()
         .nth(pos)
         .map(|ch| {
-            FromPrimitive::from_u32(ch as u32)
-                .map(|charcode: CharacterCodes| match charcode {
-                    CharacterCodes::CarriageReturn |
-                    CharacterCodes::LineFeed |
-                    CharacterCodes::Tab |
-                    CharacterCodes::VerticalTab |
-                    CharacterCodes::FormFeed |
-                    CharacterCodes::Space |
-                    CharacterCodes::Slash |
+            CharacterCode::try_from(ch)
+                .map(|charcode: CharacterCode| match charcode {
+                    CarriageReturn |
+                    LineFeed |
+                    Tab |
+                    VerticalTab |
+                    FormFeed |
+                    Space |
+                    Slash |
                         // starts of normal trivia
-                    CharacterCodes::LessThan |
-                    CharacterCodes::Bar |
-                    CharacterCodes::Equals |
-                    CharacterCodes::GreaterThan =>
+                    LessThan |
+                    Bar |
+                    Equals |
+                    GreaterThan =>
                         // Starts of conflict marker trivia
                         true,
-                    CharacterCodes::Hash =>
+                    Hash =>
                         // Only if its the beginning can we have #! trivia
                         pos == 0,
-                    _ => ch as u32 > CharacterCodes::MaxAsciiCharacter as u32,
+                    _ => ch as u32 > MaxAsciiCharacter as u32,
                 })
                 .unwrap_or_default()
         })

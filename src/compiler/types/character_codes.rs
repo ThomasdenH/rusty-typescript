@@ -1,5 +1,10 @@
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub enum CharacterCodes {
+use core::convert::TryFrom;
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
+use snafu::Snafu;
+
+#[derive(FromPrimitive, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub enum CharacterCode {
     NullCharacter = 0,
     MaxAsciiCharacter = 0x7F,
 
@@ -133,4 +138,19 @@ pub enum CharacterCodes {
     ByteOrderMark = 0xFEFF,
     Tab = 0x09,         // \t
     VerticalTab = 0x0B, // \v
+}
+
+#[derive(Snafu, Debug, Hash)]
+pub enum CharacterCodeTryFromError {
+    #[snafu(display("not a character code: {}", char_code))]
+    NotACharacterCode { char_code: u32 },
+}
+
+impl TryFrom<char> for CharacterCode {
+    type Error = CharacterCodeTryFromError;
+    fn try_from(c: char) -> Result<CharacterCode, CharacterCodeTryFromError> {
+        let char_code: u32 = c.into();
+        CharacterCode::from_u32(char_code)
+            .ok_or(CharacterCodeTryFromError::NotACharacterCode { char_code } )
+    }
 }
