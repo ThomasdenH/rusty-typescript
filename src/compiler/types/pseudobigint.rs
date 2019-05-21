@@ -1,28 +1,9 @@
 use num_bigint::BigUint;
-use wasm_bindgen::prelude::*;
-
-#[wasm_bindgen]
-extern "C" {
-    pub type PseudoBigIntJs;
-    #[wasm_bindgen(method, getter = negative)]
-    pub fn get_negative(this: &PseudoBigIntJs) -> bool;
-    #[wasm_bindgen(method, getter = base10Value)]
-    pub fn get_base10_value(this: &PseudoBigIntJs) -> String;
-}
 
 #[derive(Clone)]
-pub(crate) struct PseudoBigInt {
+pub struct PseudoBigInt {
     negative: bool,
     base10_value: String,
-}
-
-impl From<&PseudoBigIntJs> for PseudoBigInt {
-    fn from(pseudo_big_int_js: &PseudoBigIntJs) -> PseudoBigInt {
-        PseudoBigInt {
-            negative: pseudo_big_int_js.get_negative(),
-            base10_value: pseudo_big_int_js.get_base10_value(),
-        }
-    }
 }
 
 impl std::fmt::Display for PseudoBigInt {
@@ -37,15 +18,8 @@ impl std::fmt::Display for PseudoBigInt {
     }
 }
 
-#[wasm_bindgen(js_name = pseudoBigIntToString)]
-pub fn pseudo_big_int_to_string(pseudo_big_int_js: &PseudoBigIntJs) -> String {
-    let pseudo_big_int: PseudoBigInt = pseudo_big_int_js.into();
-    pseudo_big_int.to_string()
-}
-
 /// Converts a bigint literal string, e.g. `0x1234n`, to its decimal string
 /// representation, e.g. `4660`.
-#[wasm_bindgen(js_name = parsePseudoBigInt)]
 pub fn parse_pseudo_big_int(string_value: &str) -> String {
     let (start, radix) = match string_value
         .chars()
@@ -62,9 +36,9 @@ pub fn parse_pseudo_big_int(string_value: &str) -> String {
     BigUint::parse_bytes(digits, radix).unwrap().to_string()
 }
 
-#[cfg(all(test, not(target_arch = "wasm32")))]
+#[cfg(test)]
 mod tests {
-    use super::parse_pseudo_big_int;
+    use super::*;
     use num_bigint::BigUint;
     use proptest::prelude::*;
 
@@ -146,5 +120,40 @@ mod tests {
             parse_pseudo_big_int("0x18ee90ff6c373e0ee4e3f0ad2n"),
             "123456789012345678901234567890"
         );
+    }
+}
+
+#[cfg(feature = "wasm")]
+mod wasm {
+    use wasm_bindgen::prelude::*;
+    #[wasm_bindgen]
+    extern "C" {
+        pub type PseudoBigIntJs;
+        #[wasm_bindgen(method, getter = negative)]
+        pub fn get_negative(this: &PseudoBigIntJs) -> bool;
+        #[wasm_bindgen(method, getter = base10Value)]
+        pub fn get_base10_value(this: &PseudoBigIntJs) -> String;
+    }
+
+    impl From<&PseudoBigIntJs> for PseudoBigInt {
+        fn from(pseudo_big_int_js: &PseudoBigIntJs) -> PseudoBigInt {
+            PseudoBigInt {
+                negative: pseudo_big_int_js.get_negative(),
+                base10_value: pseudo_big_int_js.get_base10_value(),
+            }
+        }
+    }
+
+    #[wasm_bindgen(js_name = pseudoBigIntToString)]
+    pub fn pseudo_big_int_to_string(pseudo_big_int_js: &PseudoBigIntJs) -> String {
+        let pseudo_big_int: PseudoBigInt = pseudo_big_int_js.into();
+        pseudo_big_int.to_string()
+    }
+
+    /// Converts a bigint literal string, e.g. `0x1234n`, to its decimal string
+    /// representation, e.g. `4660`.
+    #[wasm_bindgen(js_name = parsePseudoBigInt)]
+    pub fn parse_pseudo_big_int(string_value: &str) -> String {
+        super::parse_pseudo_big_int(string_value)
     }
 }
