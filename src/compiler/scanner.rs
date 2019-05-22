@@ -1,4 +1,8 @@
-use crate::compiler::types::{CharacterCode, SyntaxKind};
+use crate::compiler::types::ScriptTarget;
+use crate::compiler::types::{
+    CharacterCode, DiagnosticMessage, LanguageVariant, SyntaxKind, TokenFlags,
+};
+use num_traits::ToPrimitive;
 use std::convert::TryFrom;
 
 const ABSTRACT: &str = "abstract";
@@ -340,6 +344,151 @@ pub fn could_start_trivia(text: &str, pos: usize) -> bool {
                 .unwrap_or_default()
         })
         .unwrap_or_default()
+}
+
+pub struct Scanner {
+    text: String,
+    /// Current position (end position of text of current token)
+    pos: usize,
+    /// end of text
+    end: usize,
+    /// Start position of whitespace before current token
+    start_pos: usize,
+    // Start position of text of current token
+    token_pos: usize,
+    token: SyntaxKind,
+    token_value: Option<String>,
+    token_flags: TokenFlags,
+    in_jsdoc_type: usize,
+    on_error: Option<Box<ErrorCallback>>,
+}
+
+type ErrorCallback = (Fn(DiagnosticMessage, usize));
+
+impl Scanner {
+    pub fn new(
+        language_version: ScriptTarget,
+        skip_trivia: bool,
+        language_variant: LanguageVariant,
+        text_initial: Option<String>,
+        on_error: Option<Box<ErrorCallback>>,
+        start: Option<usize>,
+        length: Option<usize>,
+    ) -> Scanner {
+        let text = text_initial.unwrap_or_else(|| "".to_string());
+        let start = start.unwrap_or(0);
+        let end = length.map(|l| l + start).unwrap_or(text.len());
+
+        let pos = start;
+        let start_pos = start;
+        let token_pos = start;
+        let token = SyntaxKind::Unknown;
+        let token_value = None;
+        let token_flags = TokenFlags::NONE;
+
+        Scanner {
+            text,
+            pos,
+            end,
+            start_pos,
+            token_pos,
+            token,
+            token_value,
+            token_flags,
+            in_jsdoc_type: 0,
+            on_error,
+        }
+    }
+
+    pub fn start_pos(&self) -> usize {
+        self.start_pos
+    }
+
+    pub fn text_pos(&self) -> usize {
+        self.pos
+    }
+
+    pub fn token(&self) -> SyntaxKind {
+        self.token
+    }
+
+    pub fn token_pos(&self) -> usize {
+        self.token_pos
+    }
+
+    pub fn token_text(&self) -> Option<&str> {
+        self.text.get(self.token_pos..self.pos)
+    }
+
+    pub fn get_token_value(&self) -> Option<&str> {
+        match &self.token_value {
+            Some(s) => Some(&s),
+            None => None,
+        }
+    }
+
+    pub fn has_extended_unicode_escape(&self) -> bool {
+        self.token_flags
+            .contains(TokenFlags::EXTENDED_UNICODE_ESCAPE)
+    }
+
+    pub fn has_preceding_line_break(&self) -> bool {
+        self.token_flags.contains(TokenFlags::PRECEDING_LINE_BREAK)
+    }
+
+    pub fn is_identifier(&self) -> bool {
+        self.token == SyntaxKind::Identifier
+            // token > LastReservedWord
+            || !self.token.to_u32().unwrap() > SyntaxKind::WithKeyword.to_u32().unwrap()
+    }
+
+    pub fn is_reserved_word(&self) -> bool {
+        self.token.is_reserved_word()
+    }
+
+    pub fn is_unterminated(&self) -> bool {
+        self.token_flags.contains(TokenFlags::UNTERMINATED)
+    }
+
+    pub fn token_flags(&self) -> TokenFlags {
+        self.token_flags
+    }
+
+    fn scan_number_fragment(&mut self) -> String {
+        let mut start = self.pos;
+        let mut allow_separator = false;
+        let mut is_previous_token_separator = false;
+        let mut result = String::new();
+        loop {
+            let ch = self.text.chars().nth(self.pos);
+            if ch == Some('_') {
+                self.token_flags |= TokenFlags::CONTAINS_SEPARATOR;
+                if allow_separator {
+                    allow_separator = false;
+                    is_previous_token_separator = true;
+                    result += self.text.get(start..self.pos).unwrap();
+                } else if is_previous_token_separator {
+                    unimplemented!();
+                } else {
+                    unimplemented!();
+                }
+                self.pos += 1;
+                start = self.pos;
+                continue;
+            }
+            if ch.map(|ch| ch.is_digit(10)).unwrap_or(false) {
+                allow_separator = true;
+                is_previous_token_separator = false;
+                self.pos += 1;
+                continue;
+            }
+            break;
+        }
+        if Some('_') == self.text.chars().nth(self.pos - 1) {
+            unimplemented!();
+        }
+        result + self.text.get(start..self.pos).unwrap()
+    }
 }
 
 #[cfg(feature = "wasm")]

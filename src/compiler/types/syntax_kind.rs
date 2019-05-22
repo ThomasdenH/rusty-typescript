@@ -1,6 +1,7 @@
-use num_derive::FromPrimitive;
+use num_derive::{FromPrimitive, ToPrimitive};
+use num_traits::ToPrimitive;
 
-#[derive(FromPrimitive, Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(FromPrimitive, ToPrimitive, Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum SyntaxKind {
     Unknown = 0,
     EndOfFileToken,
@@ -366,4 +367,23 @@ pub enum SyntaxKind {
 
     // Enum value count
     Count,
+}
+
+impl SyntaxKind {
+    pub fn is_reserved_word(&self) -> bool {
+        let code = self.to_u32().unwrap();
+        code >= SyntaxKind::BreakKeyword.to_u32().unwrap()
+            && code <= SyntaxKind::WithKeyword.to_u32().unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn correct_is_reserved_word() {
+        assert!(SyntaxKind::WhileKeyword.is_reserved_word());
+        assert!(SyntaxKind::WithKeyword.is_reserved_word());
+        assert!(!SyntaxKind::ConstructorKeyword.is_reserved_word());
+        assert!(!SyntaxKind::Identifier.is_reserved_word());
+    }
 }
