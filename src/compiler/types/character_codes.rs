@@ -151,6 +151,6 @@ impl TryFrom<char> for CharacterCode {
     fn try_from(c: char) -> Result<CharacterCode, CharacterCodeTryFromError> {
         let char_code: u32 = c.into();
         CharacterCode::from_u32(char_code)
-            .ok_or(CharacterCodeTryFromError::NotACharacterCode { char_code } )
+            .ok_or(CharacterCodeTryFromError::NotACharacterCode { char_code })
     }
 }
