@@ -12,7 +12,9 @@ pub enum Category {
 pub enum Message {
     UnterminatedStringLiteral,
     IdentifierExpected,
-    Expected { item: String },
+    Expected {
+        item: String,
+    },
     FileCannotReferenceItself,
     TrailingCommaNotAllowed,
     AsteriskSlashExpected,
@@ -27,6 +29,40 @@ pub enum Message {
     IndexSignatureParameterCannotHaveQuestionMark,
     IndexSignatureParameterCannotHaveInitializer,
     IndexSignatureMustHaveTypeAnnotation,
+    IndexSignatureParameterMustHaveTypeAnnotation,
+    IndexSignatureMustBeStringOrNumber,
+    ReadonlyCanOnlyAppearOnPropertyDeclarationOrIndexSignature,
+    AccessibilityModifierAlreadySeen,
+    ModifierMustPrecedeModifier {
+        modifier0: String,
+        modifier1: String,
+    },
+    ModifierAlreadySeen {
+        modifier: String,
+    },
+    ModifierCannotAppearOnClassElement {
+        modifier: String,
+    },
+    SuperMustBeFollowedByAnArgumentListOrMemberAccess,
+    OnlyAmbientModulesCanUseQuotedNames,
+    StatementsAreNotAllowedInAmbientContexts,
+    DeclareModifierCannotBeUsedInAmbientContext,
+    InitializersNotAllowedInAmbientContexts,
+    ModifierCannotBeUsedInAmbientContext {
+        modifier: String,
+    },
+    ModifierCannotBeUsedWithClassDeclaration {
+        modifier: String,
+    },
+    ModifierCannotBeUsedHere {
+        modifier: String,
+    },
+    ModifierCannotAppearOnDataProperty {
+        modifier: String,
+    },
+    ModifierCannotAppearOnModuleOrNamespaceElement {
+        modifier: String,
+    },
 }
 
 impl Message {
@@ -55,7 +91,24 @@ impl Message {
             | IndexSignatureParameterCannotHaveAccessibilityModifier
             | IndexSignatureParameterCannotHaveQuestionMark
             | IndexSignatureParameterCannotHaveInitializer
-            | IndexSignatureMustHaveTypeAnnotation => Category::Error,
+            | IndexSignatureMustHaveTypeAnnotation
+            | IndexSignatureParameterMustHaveTypeAnnotation
+            | IndexSignatureMustBeStringOrNumber
+            | ReadonlyCanOnlyAppearOnPropertyDeclarationOrIndexSignature
+            | AccessibilityModifierAlreadySeen
+            | ModifierMustPrecedeModifier { .. }
+            | ModifierAlreadySeen { .. }
+            | ModifierCannotAppearOnClassElement { .. }
+            | SuperMustBeFollowedByAnArgumentListOrMemberAccess
+            | OnlyAmbientModulesCanUseQuotedNames
+            | StatementsAreNotAllowedInAmbientContexts
+            | DeclareModifierCannotBeUsedInAmbientContext
+            | InitializersNotAllowedInAmbientContexts
+            | ModifierCannotBeUsedInAmbientContext { .. }
+            | ModifierCannotBeUsedWithClassDeclaration { .. }
+            | ModifierCannotBeUsedHere { .. }
+            | ModifierCannotAppearOnDataProperty { .. }
+            | ModifierCannotAppearOnModuleOrNamespaceElement { .. } => Category::Error,
         }
     }
 
@@ -79,6 +132,23 @@ impl Message {
             IndexSignatureParameterCannotHaveQuestionMark => 1019,
             IndexSignatureParameterCannotHaveInitializer => 1020,
             IndexSignatureMustHaveTypeAnnotation => 1021,
+            IndexSignatureParameterMustHaveTypeAnnotation => 1022,
+            IndexSignatureMustBeStringOrNumber => 1023,
+            ReadonlyCanOnlyAppearOnPropertyDeclarationOrIndexSignature => 1024,
+            AccessibilityModifierAlreadySeen => 1028,
+            ModifierMustPrecedeModifier { .. } => 1029,
+            ModifierAlreadySeen { .. } => 1030,
+            ModifierCannotAppearOnClassElement { .. } => 1031,
+            SuperMustBeFollowedByAnArgumentListOrMemberAccess => 1034,
+            OnlyAmbientModulesCanUseQuotedNames => 1035,
+            StatementsAreNotAllowedInAmbientContexts => 1036,
+            DeclareModifierCannotBeUsedInAmbientContext => 1038,
+            InitializersNotAllowedInAmbientContexts => 1039,
+            ModifierCannotBeUsedInAmbientContext { .. } => 1040,
+            ModifierCannotBeUsedWithClassDeclaration { .. } => 1041,
+            ModifierCannotBeUsedHere { .. } => 1042,
+            ModifierCannotAppearOnDataProperty { .. } => 1043,
+            ModifierCannotAppearOnModuleOrNamespaceElement { .. } => 1044,
         }
     }
 }
@@ -129,6 +199,73 @@ impl std::fmt::Display for Message {
             IndexSignatureMustHaveTypeAnnotation => {
                 write!(f, "An index signature must have a type annotation.")
             }
+            IndexSignatureParameterMustHaveTypeAnnotation => write!(
+                f,
+                "An index signature parameter must have a type annotation."
+            ),
+            IndexSignatureMustBeStringOrNumber => write!(
+                f,
+                "An index signature parameter type must be 'string' or 'number'."
+            ),
+            ReadonlyCanOnlyAppearOnPropertyDeclarationOrIndexSignature => write!(
+                f,
+                "'readonly' modifier can only appear on a property declaration or index signature."
+            ),
+            AccessibilityModifierAlreadySeen => write!(f, "Accessibility modifier already seen."),
+            ModifierMustPrecedeModifier {
+                modifier0,
+                modifier1,
+            } => write!(
+                f,
+                "'{0}' modifier must precede '{1}' modifier.",
+                modifier0, modifier1
+            ),
+            ModifierAlreadySeen { modifier } => write!(f, "'{0}' modifier already seen.", modifier),
+            ModifierCannotAppearOnClassElement { modifier } => write!(
+                f,
+                "'{0}' modifier cannot appear on a class element.",
+                modifier
+            ),
+            SuperMustBeFollowedByAnArgumentListOrMemberAccess => write!(
+                f,
+                "'super' must be followed by an argument list or member access."
+            ),
+            OnlyAmbientModulesCanUseQuotedNames => {
+                write!(f, "Only ambient modules can use quoted names.")
+            }
+            StatementsAreNotAllowedInAmbientContexts => {
+                write!(f, "Statements are not allowed in ambient contexts.")
+            }
+            DeclareModifierCannotBeUsedInAmbientContext => write!(
+                f,
+                "A 'declare' modifier cannot be used in an already ambient context."
+            ),
+            InitializersNotAllowedInAmbientContexts => {
+                write!(f, "Initializers are not allowed in ambient contexts.")
+            }
+            ModifierCannotBeUsedInAmbientContext { modifier } => write!(
+                f,
+                "'{0}' modifier cannot be used in an ambient context.",
+                modifier
+            ),
+            ModifierCannotBeUsedWithClassDeclaration { modifier } => write!(
+                f,
+                "'{0}' modifier cannot be used with a class declaration.",
+                modifier
+            ),
+            ModifierCannotBeUsedHere { modifier } => {
+                write!(f, "'{0}' modifier cannot be used here.", modifier)
+            }
+            ModifierCannotAppearOnDataProperty { modifier } => write!(
+                f,
+                "'{0}' modifier cannot appear on a data property.",
+                modifier
+            ),
+            ModifierCannotAppearOnModuleOrNamespaceElement { modifier } => write!(
+                f,
+                "'{0}' modifier cannot appear on a module or namespace element.",
+                modifier
+            ),
         }
     }
 }
