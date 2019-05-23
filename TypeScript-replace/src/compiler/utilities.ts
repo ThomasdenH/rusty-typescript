@@ -7339,7 +7339,7 @@ namespace ts {
     }
 
     export function pathIsRelative(path: string): boolean {
-        return /^\.\.?($|[\\/])/.test(path);
+        return RustyTypeScript.pathIsRelative(path);
     }
 
     /**
