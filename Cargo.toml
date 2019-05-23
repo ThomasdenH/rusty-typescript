@@ -19,7 +19,6 @@ serde_json="1"
 lazy_static="1"
 
 [features]
-default = []
 wasm = []
 
 [dev-dependencies]
