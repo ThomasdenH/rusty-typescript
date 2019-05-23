@@ -1,8 +1,6 @@
 use crate::compiler::types::SyntaxKind;
 use lazy_static::*;
 use regex::Regex;
-use crate::compiler::types::CharacterCode;
-use std::convert::TryFrom;
 
 pub fn is_pinned_comment(text: &str, start: usize) -> bool {
     text.chars().nth(start + 1) == Some('*') && text.chars().nth(start + 2) == Some('!')
@@ -187,26 +185,10 @@ pub fn path_is_relative(path: &str) -> bool {
     RE.is_match(path)
 }
 
-pub fn get_encoded_root_length(path: &str) -> usize {
-    let ch0 = match path.chars().nth(0) {
-        Some(c) => CharacterCode::try_from(c),
-        None => return 0
-    };
-
-    if let Ok(CharacterCode::Slash) | Ok(CharacterCode::Backslash) = ch0 {
-        match path.chars().nth(1) {
-            Some(ch1) => {
-                if 
-            }
-        }
-    }
-}
-
 #[cfg(feature = "wasm")]
 mod wasm {
     use wasm_bindgen::prelude::*;
 
-    
     #[wasm_bindgen(js_name = isPinnedComment)]
     pub fn is_pinned_comment(text: &str, start: usize) -> bool {
         super::is_pinned_comment(text, start)
@@ -221,12 +203,12 @@ mod wasm {
             .to_u8()
             .unwrap()
     }
-    
+
     #[wasm_bindgen(js_name = normalizeSlashes)]
     pub fn normalize_slashes(path: String) -> String {
         super::normalize_slashes(path)
     }
-    
+
     #[wasm_bindgen(js_name = getBinaryOperatorPrecedence)]
     pub fn get_binary_operator_precedence(kind: u32) -> i8 {
         super::get_binary_operator_precedence(FromPrimitive::from_u32(kind).unwrap()).0

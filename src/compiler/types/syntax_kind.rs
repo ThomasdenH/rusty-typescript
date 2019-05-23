@@ -375,6 +375,11 @@ impl SyntaxKind {
         code >= SyntaxKind::BreakKeyword.to_u32().unwrap()
             && code <= SyntaxKind::WithKeyword.to_u32().unwrap()
     }
+
+    pub fn is_identifier_or_keyword(&self) -> bool {
+        let code = self.to_u32().unwrap();
+        code >= SyntaxKind::Identifier.to_u32().unwrap()
+    }
 }
 
 #[cfg(test)]

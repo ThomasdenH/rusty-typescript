@@ -1,9 +1,34 @@
 use core::convert::TryFrom;
-use num_derive::FromPrimitive;
-use num_traits::FromPrimitive;
+use num_derive::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, ToPrimitive};
 use snafu::Snafu;
 
-#[derive(FromPrimitive, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub const NULL_CHARACTER: char = '\u{0}';
+
+pub const LINE_FEED: char = '\n';
+pub const CARRIAGE_RETURN: char = '\r';
+pub const LINE_SEPARATOR: char = '\u{2028}';
+pub const PARAGRAPH_SEPARATOR: char = '\u{2029}';
+
+pub const SPACE: char = ' ';
+pub const TAB: char = '\t';
+pub const VERTICAL_TAB: char = '\u{0B}';
+pub const FORM_FEED: char = '\u{0C}';
+pub const NON_BREAKING_SPACE: char = '\u{00A0}';
+pub const NEXT_LINE: char = '\u{0085}';
+pub const OGHAM: char = '\u{1680}';
+pub const EN_QUAD: char = '\u{2000}';
+pub const ZERO_WIDTH_SPACE: char = '\u{200B}';
+pub const NARROW_NO_BREAK_SPACE: char = '\u{202F}';
+pub const MATHEMATICAL_SPACE: char = '\u{205F}';
+pub const IDEOGRAPHIC_SPACE: char = '\u{3000}';
+pub const BYTE_ORDER_MARK: char = '\u{FEFF}';
+pub const BACKTICK: char = '\u{60}';
+pub const DOLLAR: char = '$';
+pub const OPEN_BRACE: char = '{';
+pub const BACKSPACE: char = '\u{08}';
+
+#[derive(FromPrimitive, ToPrimitive, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum CharacterCode {
     NullCharacter = 0,
     MaxAsciiCharacter = 0x7F,
@@ -152,5 +177,11 @@ impl TryFrom<char> for CharacterCode {
         let char_code: u32 = c.into();
         CharacterCode::from_u32(char_code)
             .ok_or(CharacterCodeTryFromError::NotACharacterCode { char_code })
+    }
+}
+
+impl From<CharacterCode> for char {
+    fn from(c: CharacterCode) -> char {
+        std::char::from_u32(c.to_u32().unwrap()).unwrap()
     }
 }

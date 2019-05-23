@@ -63,6 +63,12 @@ pub enum Message {
     ModifierCannotAppearOnModuleOrNamespaceElement {
         modifier: String,
     },
+    DigitExpected,
+    UnexpectedEndOfText,
+    UnterminatedTemplateLiteral,
+    UnterminatedRegularExpressionLiteral,
+    NumericSeparatorsAreNotAllowedHere,
+    MultipleConsecutiveNumericSeparatorsNotPermitted,
 }
 
 impl Message {
@@ -108,7 +114,13 @@ impl Message {
             | ModifierCannotBeUsedWithClassDeclaration { .. }
             | ModifierCannotBeUsedHere { .. }
             | ModifierCannotAppearOnDataProperty { .. }
-            | ModifierCannotAppearOnModuleOrNamespaceElement { .. } => Category::Error,
+            | ModifierCannotAppearOnModuleOrNamespaceElement { .. }
+            | UnterminatedTemplateLiteral
+            | DigitExpected
+            | UnexpectedEndOfText
+            | UnterminatedRegularExpressionLiteral
+            | NumericSeparatorsAreNotAllowedHere
+            | MultipleConsecutiveNumericSeparatorsNotPermitted => Category::Error,
         }
     }
 
@@ -149,6 +161,12 @@ impl Message {
             ModifierCannotBeUsedHere { .. } => 1042,
             ModifierCannotAppearOnDataProperty { .. } => 1043,
             ModifierCannotAppearOnModuleOrNamespaceElement { .. } => 1044,
+            DigitExpected => 1124,
+            UnexpectedEndOfText => 1126,
+            UnterminatedTemplateLiteral => 1160,
+            UnterminatedRegularExpressionLiteral => 1161,
+            NumericSeparatorsAreNotAllowedHere => 6188,
+            MultipleConsecutiveNumericSeparatorsNotPermitted => 6189,
         }
     }
 }
@@ -265,6 +283,19 @@ impl std::fmt::Display for Message {
                 f,
                 "'{0}' modifier cannot appear on a module or namespace element.",
                 modifier
+            ),
+            DigitExpected => write!(f, "Digit expected."),
+            UnexpectedEndOfText => write!(f, "Unexpected end of text."),
+            UnterminatedTemplateLiteral => write!(f, "Unterminated template literal."),
+            UnterminatedRegularExpressionLiteral => {
+                write!(f, "Unterminated regular expression literal.")
+            }
+            NumericSeparatorsAreNotAllowedHere => {
+                write!(f, "Numeric separators are not allowed here.")
+            }
+            MultipleConsecutiveNumericSeparatorsNotPermitted => write!(
+                f,
+                "Multiple consecutive numeric separators are not permitted."
             ),
         }
     }
