@@ -20,6 +20,13 @@ pub enum Message {
     UnexpectedToken,
     RestParameterOrBindingPatternMayNotHaveTrailingComma,
     RestParameterMustBeLastInParameterList,
+    ParaneterCannotHaveQuestionMarkAndInitializer,
+    RequiredParameterCannotFollowOptionalParameter,
+    IndexSignatureCannotHaveRestParameter,
+    IndexSignatureParameterCannotHaveAccessibilityModifier,
+    IndexSignatureParameterCannotHaveQuestionMark,
+    IndexSignatureParameterCannotHaveInitializer,
+    IndexSignatureMustHaveTypeAnnotation,
 }
 
 impl Message {
@@ -41,7 +48,14 @@ impl Message {
             | ElementAccessExpressionShouldTakeArgument
             | UnexpectedToken
             | RestParameterOrBindingPatternMayNotHaveTrailingComma
-            | RestParameterMustBeLastInParameterList => Category::Error,
+            | RestParameterMustBeLastInParameterList
+            | ParaneterCannotHaveQuestionMarkAndInitializer
+            | RequiredParameterCannotFollowOptionalParameter
+            | IndexSignatureCannotHaveRestParameter
+            | IndexSignatureParameterCannotHaveAccessibilityModifier
+            | IndexSignatureParameterCannotHaveQuestionMark
+            | IndexSignatureParameterCannotHaveInitializer
+            | IndexSignatureMustHaveTypeAnnotation => Category::Error,
         }
     }
 
@@ -58,6 +72,13 @@ impl Message {
             UnexpectedToken => 1012,
             RestParameterOrBindingPatternMayNotHaveTrailingComma => 1013,
             RestParameterMustBeLastInParameterList => 1014,
+            ParaneterCannotHaveQuestionMarkAndInitializer => 1015,
+            RequiredParameterCannotFollowOptionalParameter => 1016,
+            IndexSignatureCannotHaveRestParameter => 1017,
+            IndexSignatureParameterCannotHaveAccessibilityModifier => 1018,
+            IndexSignatureParameterCannotHaveQuestionMark => 1019,
+            IndexSignatureParameterCannotHaveInitializer => 1020,
+            IndexSignatureMustHaveTypeAnnotation => 1021,
         }
     }
 }
@@ -82,6 +103,31 @@ impl std::fmt::Display for Message {
             ),
             RestParameterMustBeLastInParameterList => {
                 write!(f, "A rest parameter must be last in a parameter list.")
+            }
+            ParaneterCannotHaveQuestionMarkAndInitializer => {
+                write!(f, "Parameter cannot have question mark and initializer")
+            }
+            RequiredParameterCannotFollowOptionalParameter => write!(
+                f,
+                "A required parameter cannot follow an optional parameter."
+            ),
+            IndexSignatureCannotHaveRestParameter => {
+                write!(f, "An index signature cannot have a rest parameter.")
+            }
+            IndexSignatureParameterCannotHaveAccessibilityModifier => write!(
+                f,
+                "An index signature parameter cannot have an accessibility modifier."
+            ),
+            IndexSignatureParameterCannotHaveQuestionMark => write!(
+                f,
+                "An index signature parameter cannot have a question mark."
+            ),
+            IndexSignatureParameterCannotHaveInitializer => write!(
+                f,
+                "An index signature parameter cannot have an initializer."
+            ),
+            IndexSignatureMustHaveTypeAnnotation => {
+                write!(f, "An index signature must have a type annotation.")
             }
         }
     }

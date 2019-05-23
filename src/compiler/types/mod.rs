@@ -2,7 +2,7 @@ use num_derive::{FromPrimitive, ToPrimitive};
 
 pub mod character_codes;
 // pub mod node;
-pub mod diagnostics_message;
+pub mod diagnostic;
 pub mod node_flags;
 pub mod pseudobigint;
 pub mod syntax_kind;
@@ -11,7 +11,6 @@ pub mod textspan;
 pub mod token_flags;
 
 pub use character_codes::CharacterCode;
-pub use diagnostics_message::{DiagnosticCategory, DiagnosticMessage};
 pub use node_flags::NodeFlags;
 pub use pseudobigint::PseudoBigInt;
 pub use syntax_kind::SyntaxKind;
