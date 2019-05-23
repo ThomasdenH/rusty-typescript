@@ -1,6 +1,6 @@
 use crate::compiler::types::ScriptTarget;
 use crate::compiler::types::{
-    CharacterCode, DiagnosticMessage, LanguageVariant, SyntaxKind, TokenFlags,
+    CharacterCode, LanguageVariant, SyntaxKind, TokenFlags, diagnostics
 };
 use num_traits::ToPrimitive;
 use std::convert::TryFrom;
@@ -363,7 +363,7 @@ pub struct Scanner {
     on_error: Option<Box<ErrorCallback>>,
 }
 
-type ErrorCallback = (Fn(DiagnosticMessage, usize));
+type ErrorCallback = (Fn(diagnostics::Message, usize));
 
 impl Scanner {
     pub fn new(
@@ -397,6 +397,15 @@ impl Scanner {
             token_flags,
             in_jsdoc_type: 0,
             on_error,
+        }
+    }
+
+    fn error (&mut self, message: diagnostics::Message, err_pos: Option<usize>, length: Option<usize>) {
+        if let Some(on_error) = self.on_error {
+            let old_pos = self.pos;
+            self.pos = err_pos.unwrap_or(self.pos);
+            on_error(message, length.unwrap_or(0));
+            self.pos = old_pos;
         }
     }
 
@@ -468,9 +477,17 @@ impl Scanner {
                     is_previous_token_separator = true;
                     result += self.text.get(start..self.pos).unwrap();
                 } else if is_previous_token_separator {
-                    unimplemented!();
+                    self.error(
+                        diagnostics::Message::MultipleConsecutiveNumericSeparatorsNotPermitted,
+                        Some(self.pos),
+                        Some(1)
+                    );
                 } else {
-                    unimplemented!();
+                    self.error(
+                        diagnostics::Message::NumericSeparatorsAreNotAllowedHere,
+                        Some(self.pos),
+                        Some(1)
+                    );
                 }
                 self.pos += 1;
                 start = self.pos;
@@ -485,9 +502,83 @@ impl Scanner {
             break;
         }
         if Some('_') == self.text.chars().nth(self.pos - 1) {
-            unimplemented!();
+            self.error(
+                diagnostics::Message::NumericSeparatorsAreNotAllowedHere,
+                Some(self.pos - 1),
+                Some(1)
+            );
         }
         result + self.text.get(start..self.pos).unwrap()
+    }
+
+    fn scan_number(&mut self) -> (SyntaxKind, String) {
+        let start = self.pos;
+        let main_fragment = self.scan_number_fragment();
+        let decimal_fragment: Option<String>;
+        let scientific_fragment: Option<String>;
+        if self.text.chars().nth(self.pos) == Some('.') {
+            self.pos += 1;
+            decimal_fragment = self.scan_number_fragment();
+        }
+        let end = self.pos;
+        if self.text.chars().nth(self.pos) == Some('E') || self.text.chars().nth(self.pos) == Some('e') {
+            self.pos +=1;
+            self.token_flags.insert(TokenFlags::SCIENTIFIC);
+            if self.text.chars().nth(self.pos) == Some('+') || self.text.chars().nth(self.pos) == Some('-') {
+                self.pos += 1;
+            }
+            let pre_numeric_part = self.pos;
+            let final_fragment = self.scan_number_fragment();
+            if final_fragment.len() == 0 {
+                error(
+                    diagnostics::Message::DigitExpected,
+                    None,
+                    None
+                )
+            } else {
+                scientific_fragment = Some(self.text.get(end..pre_numeric_part).unwrap().to_string() + final_fragment);
+                end = pos;
+            }
+        }
+        let result: String;
+        if self.token_flags.contains(TokenFlags::CONTAINS_SEPARATOR) {
+            result = main_fragment;
+            if let Some(decimal_fragment) = decimal_fragment {
+                result += "." + decimal_fragment;
+            }
+            if let Some(scientific_fragment) = scientific_fragment {
+                result += scientific_fragment;
+            }
+        } else {
+            result = self.text.get(start..end);
+        }
+
+        if decimal_fragment.is_some() || self.token_flags.contains(TokenFlags::SCIENTIFIC) {
+            check_for_identifier_start_after_numeric_literal(start, );
+            (
+                SyntaxKind::NumericLiteral,
+                value: 
+            )
+        } else {
+            self.token_value = result;
+            let type = self.check_big_int_suffix();
+            self.check_for_identifier_start_after_numeric_literal(start);
+            (
+
+            )
+        }
+    }
+
+    fn scan_octal_digits(&mut self) -> usize {
+        let start = self.pos;
+        loop {
+            if self.text.chars().nth(self.pos).map(|c| c.is_digit(8)).unwrap_or(false) {
+                self.pos += 1;
+            } else {
+                break;
+            }
+        }
+        self.text.get(start..self.pos).unwrap().parse().unwrap()
     }
 }
 
