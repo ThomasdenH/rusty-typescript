@@ -2,7 +2,7 @@ use num_derive::{FromPrimitive, ToPrimitive};
 
 pub mod character_codes;
 // pub mod node;
-pub mod diagnostics;
+pub mod diagnostic;
 pub mod node_flags;
 pub mod pseudobigint;
 pub mod syntax_kind;
