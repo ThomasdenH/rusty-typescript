@@ -10,7 +10,6 @@ pub mod text_range;
 pub mod textspan;
 pub mod token_flags;
 
-pub use character_codes::CharacterCode;
 pub use node_flags::NodeFlags;
 pub use pseudobigint::PseudoBigInt;
 pub use syntax_kind::SyntaxKind;
@@ -49,8 +48,8 @@ impl ScriptTarget {
         ScriptTarget::ESNext
     }
 
-    pub fn is_latest(&self) -> bool {
-        self == &ScriptTarget::ESNext
+    pub fn is_latest(self) -> bool {
+        self == ScriptTarget::ESNext
     }
 }
 

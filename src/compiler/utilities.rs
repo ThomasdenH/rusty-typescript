@@ -171,7 +171,7 @@ pub fn has_zero_or_one_asterisk_character(s: &str) -> bool {
             }
         }
     }
-    return true;
+    true
 }
 
 pub fn normalize_slashes(path: String) -> String {

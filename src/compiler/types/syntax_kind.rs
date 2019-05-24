@@ -370,13 +370,13 @@ pub enum SyntaxKind {
 }
 
 impl SyntaxKind {
-    pub fn is_reserved_word(&self) -> bool {
+    pub fn is_reserved_word(self) -> bool {
         let code = self.to_u32().unwrap();
         code >= SyntaxKind::BreakKeyword.to_u32().unwrap()
             && code <= SyntaxKind::WithKeyword.to_u32().unwrap()
     }
 
-    pub fn is_identifier_or_keyword(&self) -> bool {
+    pub fn is_identifier_or_keyword(self) -> bool {
         let code = self.to_u32().unwrap();
         code >= SyntaxKind::Identifier.to_u32().unwrap()
     }

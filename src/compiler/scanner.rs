@@ -1,6 +1,6 @@
 use crate::compiler::types::ScriptTarget;
 use crate::compiler::types::{
-    character_codes, diagnostic, CharacterCode, LanguageVariant, SyntaxKind, TokenFlags,
+    character_codes, diagnostic, LanguageVariant, SyntaxKind, TokenFlags,
 };
 use lazy_static::*;
 use num_traits::ToPrimitive;
@@ -346,34 +346,30 @@ pub fn is_white_space_like(c: char) -> bool {
 }
 
 pub fn could_start_trivia(text: &str, pos: usize) -> bool {
-    use CharacterCode::*;
+    use character_codes::*;
     text.chars()
         .nth(pos)
-        .map(|ch| {
-            CharacterCode::try_from(ch)
-                .map(|charcode: CharacterCode| match charcode {
-                    CarriageReturn |
-                    LineFeed |
-                    Tab |
-                    VerticalTab |
-                    FormFeed |
-                    Space |
-                    Slash |
-                        // starts of normal trivia
-                    LessThan |
-                    Bar |
-                    Equals |
-                    GreaterThan =>
-                        // Starts of conflict marker trivia
-                        true,
-                    Hash =>
-                        // Only if its the beginning can we have #! trivia
-                        pos == 0,
-                    _ => ch as u32 > MaxAsciiCharacter as u32,
-                })
-                .unwrap_or_default()
+        .map(|ch| match ch {
+            CARRIAGE_RETURN |
+            LINE_FEED |
+            TAB |
+            VERTICAL_TAB |
+            FORM_FEED |
+            ' ' |
+            '/' |
+                // starts of normal trivia
+            '<' |
+            '|' |
+            '>' |
+            '=' =>
+                // Starts of conflict marker trivia
+                true,
+            '#' =>
+                // Only if its the beginning can we have #! trivia
+                pos == 0,
+            _ => !ch.is_ascii(),
         })
-        .unwrap_or_default()
+        .unwrap_or(false)
 }
 
 pub struct Scanner {
@@ -393,6 +389,7 @@ pub struct Scanner {
     on_error: Option<Box<ErrorCallback>>,
     language_version: ScriptTarget,
     language_variant: LanguageVariant,
+    skip_trivia: bool,
 }
 
 type ErrorCallback = (Fn(diagnostic::Message, usize));
@@ -409,7 +406,7 @@ impl Scanner {
     ) -> Scanner {
         let text = text_initial.unwrap_or_else(|| "".to_string());
         let start = start.unwrap_or(0);
-        let end = length.map(|l| l + start).unwrap_or(text.len());
+        let end = length.map(|l| l + start).unwrap_or_else(|| text.len());
 
         let pos = start;
         let start_pos = start;
@@ -431,6 +428,7 @@ impl Scanner {
             on_error,
             language_version,
             language_variant,
+            skip_trivia,
         }
     }
 
@@ -616,7 +614,7 @@ impl Scanner {
         );
         self.pos = self.token_pos;
         self.token = self.scan_template_and_set_token_value();
-        return self.token;
+        self.token
     }
 
     pub fn set_language_variant(&mut self, variant: LanguageVariant) {
@@ -626,17 +624,12 @@ impl Scanner {
     /// Sets the current 'tokenValue' and returns a NoSubstitutionTemplateLiteral or
     /// a literal component of a TemplateExpression.
     fn scan_template_and_set_token_value(&mut self) -> SyntaxKind {
-        let started_with_backtick = self
-            .text
-            .chars()
-            .nth(self.pos)
-            .map(|c| c == character_codes::BACKTICK)
-            .unwrap_or(false);
+        let started_with_backtick = self.text.chars().nth(self.pos) == Some('`');
 
         self.pos += 1;
         let mut start = self.pos;
         let mut contents = String::new();
-        let mut resulting_token: SyntaxKind;
+        let resulting_token: SyntaxKind;
 
         loop {
             if self.pos >= self.end {
@@ -654,7 +647,7 @@ impl Scanner {
             let curr_char = self.text.chars().nth(self.pos);
 
             // '`'
-            if curr_char == Some(character_codes::BACKTICK) {
+            if curr_char == Some('`') {
                 contents += &self.text[start..self.pos];
                 self.pos += 1;
                 resulting_token = if started_with_backtick {
@@ -886,7 +879,7 @@ impl Scanner {
             }
             let pre_numeric_part = self.pos;
             let final_fragment = self.scan_number_fragment();
-            if final_fragment.len() == 0 {
+            if final_fragment.is_empty() {
                 self.error(diagnostic::Message::DigitExpected, None, None)
             } else {
                 scientific_fragment = Some(
