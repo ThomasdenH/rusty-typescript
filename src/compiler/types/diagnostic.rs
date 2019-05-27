@@ -69,6 +69,7 @@ pub enum Message {
     UnterminatedRegularExpressionLiteral,
     NumericSeparatorsAreNotAllowedHere,
     MultipleConsecutiveNumericSeparatorsNotPermitted,
+    MergeConflictMarkerEncountered,
 }
 
 impl Message {

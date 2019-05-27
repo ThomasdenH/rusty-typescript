@@ -5,8 +5,15 @@ use crate::compiler::types::{
     TokenFlags,
 };
 use lazy_static::*;
+use regex::Regex;
 use std::convert::TryFrom;
 use std::str::FromStr;
+
+lazy_static! {
+    static ref SHEBANG_TRIVIA_REGEX: Regex = Regex::new("^#!.*").unwrap();
+}
+
+const MERGE_CONFLICT_MARKER_LENGTH: usize = "<<<<<<<".len();
 
 fn is_identifier_start(c: char, language_version: ScriptTarget) -> bool {
     c.is_ascii_alphabetic()
@@ -222,7 +229,7 @@ impl Scanner {
     }
 
     pub fn is_reserved_word(&self) -> bool {
-        unimplemented!();
+        self.token.is_reserved_word()
     }
 
     pub fn is_unterminated(&self) -> bool {
@@ -321,7 +328,142 @@ impl Scanner {
     }
 
     pub fn scan_jsx_token(&mut self) -> syntax_kind::JsxToken {
-        unimplemented!();
+        self.token_pos = self.pos;
+        self.start_pos = self.pos;
+
+        if self.pos >= self.end {
+            self.token = SyntaxKind::EndOfFileToken;
+            return syntax_kind::JsxToken::EndOfFileToken;
+        }
+
+        let c = self.text.chars().nth(self.pos);
+        if c == Some('<') {
+            if self.text.chars().nth(self.pos + 1) == Some('/') {
+                self.pos += 2;
+                self.token = SyntaxKind::Token(Token::LessThanSlash);
+                return syntax_kind::JsxToken::LessThanSlashToken;
+            }
+            self.pos += 1;
+            self.token = SyntaxKind::Token(Token::LessThan);
+            return syntax_kind::JsxToken::LessThanToken;
+        }
+
+        if c == Some('{') {
+            self.pos += 1;
+            self.token = SyntaxKind::Token(Token::OpenBrace);
+            return syntax_kind::JsxToken::OpenBraceToken;
+        }
+
+        // First non-whitespace character on this line.
+        let mut first_non_whitespace: Option<usize> = Some(0);
+        // These initial values are special because the first line is:
+        // firstNonWhitespace = 0 to indicate that we want leading whitspace,
+
+        while self.pos < self.end {
+            let c = self.text.chars().nth(self.pos);
+
+            if c == Some('{') {
+                break;
+            }
+            if c == Some('<') {
+                if self.is_conflict_marker_trivia() {
+                    self.scan_conflict_marker_trivia();
+                    self.token = SyntaxKind::ConflictMarkerTrivia;
+                    return syntax_kind::JsxToken::ConflictMarkerTrivia;
+                }
+                break;
+            }
+            // FirstNonWhitespace is 0, then we only see whitespaces so far. If we see a linebreak, we want to ignore that whitespaces.
+            // i.e (- : whitespace)
+            //      <div>----
+            //      </div> becomes <div></div>
+            //
+            //      <div>----</div> becomes <div>----</div>
+            if c.map(is_line_break).unwrap_or(false) && first_non_whitespace == Some(0) {
+                first_non_whitespace = None;
+            } else if !c.map(is_white_space_like).unwrap_or(false) {
+                first_non_whitespace = Some(self.pos);
+            }
+            self.pos += 1;
+        }
+        self.token_value = Some(self.text[self.start_pos..self.pos].to_string());
+        if first_non_whitespace.is_none() {
+            syntax_kind::JsxToken::JsxTextAllWhiteSpaces
+        } else {
+            syntax_kind::JsxToken::JsxText
+        }
+    }
+
+    // All conflict markers consist of the same character repeated seven times.  If it is
+    // a <<<<<<< or >>>>>>> marker then it is also followed by a space.
+    fn is_conflict_marker_trivia(&self) -> bool {
+        if self.pos == 0
+            || self
+                .text
+                .chars()
+                .nth(self.pos - 1)
+                .map(is_line_break)
+                .unwrap_or(false)
+        {
+            let ch = self.text.chars().nth(self.pos);
+
+            if (self.pos + MERGE_CONFLICT_MARKER_LENGTH) < self.text.len() {
+                if self
+                    .text
+                    .chars()
+                    .skip(self.pos)
+                    .take(MERGE_CONFLICT_MARKER_LENGTH)
+                    .any(|c| c != ch.unwrap())
+                {
+                    return false;
+                }
+            }
+
+            return ch == Some('=')
+                || self
+                    .text
+                    .chars()
+                    .nth(self.pos + MERGE_CONFLICT_MARKER_LENGTH)
+                    == Some('=');
+        }
+        false
+    }
+
+    fn scan_conflict_marker_trivia(&mut self) {
+        self.error(
+            diagnostic::Message::MergeConflictMarkerEncountered,
+            Some(self.pos),
+            Some(MERGE_CONFLICT_MARKER_LENGTH),
+        );
+
+        let ch = self.text.chars().nth(self.pos);
+        let len = self.text.len();
+
+        if ch == Some('<') || ch == Some('>') {
+            while self
+                .text
+                .chars()
+                .nth(self.pos)
+                .map(is_line_break)
+                .unwrap_or(false)
+            {
+                self.pos += 1;
+            }
+        } else {
+            assert!(ch == Some('|') || ch == Some('='));
+            // Consume everything from the start of a ||||||| or ======= marker to the start
+            // of the next ======= or >>>>>>> marker.
+            loop {
+                let current_char = self.text.chars().nth(self.pos);
+                if (current_char == Some('=') || current_char == Some('|'))
+                    && current_char != ch
+                    && self.is_conflict_marker_trivia()
+                {
+                    break;
+                }
+                self.pos += 1;
+            }
+        }
     }
 
     pub fn scan_jsdoc_token(&mut self) -> syntax_kind::JsDoc {
@@ -329,11 +471,77 @@ impl Scanner {
     }
 
     pub fn scan(&mut self) -> SyntaxKind {
-        unimplemented!();
+        self.start_pos = self.pos;
+        self.token_flags = TokenFlags::NONE;
+        let mut asterisk_seen = false;
+        loop {
+            self.token_pos = self.pos;
+            let ch = self.text.chars().nth(self.pos);
+            if let Some(ch) = ch {
+                // Special handling for shebang
+                if ch == '#' && self.pos == 0 && self.is_shebang_trivia() {
+                    self.scan_shebang_trivia();
+                    if self.skip_trivia {
+                        continue;
+                    } else {
+
+                    }
+                }
+            } else {
+                self.token = SyntaxKind::EndOfFileToken;
+                return SyntaxKind::EndOfFileToken;
+            }
+        }
+    }
+
+    pub(crate) fn is_shebang_trivia(&self) -> bool {
+        assert!(self.pos == 0);
+        SHEBANG_TRIVIA_REGEX.is_match(&self.text)
+    }
+
+    pub(crate) fn scan_shebang_trivia(&mut self) {
+        self.pos += SHEBANG_TRIVIA_REGEX
+            .find(&self.text)
+            .unwrap()
+            .as_str()
+            .len();
     }
 
     pub fn scan_string(&mut self, jsx_attribute_string: bool) -> String {
-        unimplemented!();
+        let quote = self.text.chars().nth(self.pos);
+        self.pos += 1;
+        let mut result = String::new();
+        let mut start = self.pos;
+        loop {
+            if self.pos >= self.end {
+                result += &self.text[start..self.pos];
+                self.token_flags |= TokenFlags::UNTERMINATED;
+                self.error(diagnostic::Message::UnterminatedStringLiteral, None, None);
+                break;
+            }
+            let ch = self.text.chars().nth(self.pos);
+            if ch == quote {
+                result += &self.text[start..self.pos];
+                self.pos += 1;
+                break;
+            }
+            if ch == Some('\\') && !jsx_attribute_string {
+                result += &self.text[start..self.pos];
+                if let Some(c) = self.scan_escape_sequence() {
+                    result.push(c);
+                }
+                start = self.pos;
+                continue;
+            }
+            if ch.map(is_line_break).unwrap_or(false) && !jsx_attribute_string {
+                result += &self.text[start..self.pos];
+                self.token_flags |= TokenFlags::UNTERMINATED;
+                self.error(diagnostic::Message::UnterminatedStringLiteral, None, None);
+                break;
+            }
+            self.pos += 1;
+        }
+        result
     }
 
     pub fn re_scan_slash_token(&mut self) -> SyntaxKind {

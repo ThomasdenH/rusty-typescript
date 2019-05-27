@@ -272,4 +272,11 @@ impl SyntaxKind {
     pub(crate) fn is_identifier_or_keyword_or_greater_than(&self) -> bool {
         self.is_identifier_or_keyword() || *self == SyntaxKind::Token(Token::GreaterThan)
     }
+
+    pub(crate) fn is_reserved_word(self) -> bool {
+        match self {
+            SyntaxKind::Keyword(k) => k.is_reserved_word(),
+            _ => false,
+        }
+    }
 }

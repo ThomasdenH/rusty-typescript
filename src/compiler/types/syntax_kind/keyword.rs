@@ -157,6 +157,19 @@ pub enum Keyword {
     Of,
 }
 
+impl Keyword {
+    pub(crate) fn is_reserved_word(self) -> bool {
+        use Keyword::*;
+        match self {
+            Break | Case | Catch | Class | Const | Continue | Debugger | Default | Delete | Do
+            | Else | Enum | Export | Extends | False | Finally | For | Function | If | Import
+            | In | InstanceOf | New | Null | Return | Super | Switch | This | Throw | True
+            | Try | TypeOf | Var | Void | While | With => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Clone, Snafu, Hash, Debug)]
 pub enum FromStrError {
     #[snafu(display("not a keyword: {}", s))]
