@@ -1,9 +1,16 @@
-use num_derive::{FromPrimitive, ToPrimitive};
-use num_traits::ToPrimitive;
+pub mod js_doc;
+pub mod jsx_token;
+pub mod keyword;
+pub mod token;
 
-#[derive(FromPrimitive, ToPrimitive, Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub use js_doc::JsDoc;
+pub use jsx_token::JsxToken;
+pub use keyword::Keyword;
+pub use token::Token;
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum SyntaxKind {
-    Unknown = 0,
+    Unknown,
     EndOfFileToken,
     SingleLineCommentTrivia,
     MultiLineCommentTrivia,
@@ -26,142 +33,13 @@ pub enum SyntaxKind {
     TemplateHead,
     TemplateMiddle,
     TemplateTail,
-    // Punctuation
-    OpenBraceToken,
-    CloseBraceToken,
-    OpenParenToken,
-    CloseParenToken,
-    OpenBracketToken,
-    CloseBracketToken,
-    DotToken,
-    DotDotDotToken,
-    SemicolonToken,
-    CommaToken,
-    LessThanToken,
-    LessThanSlashToken,
-    GreaterThanToken,
-    LessThanEqualsToken,
-    GreaterThanEqualsToken,
-    EqualsEqualsToken,
-    ExclamationEqualsToken,
-    EqualsEqualsEqualsToken,
-    ExclamationEqualsEqualsToken,
-    EqualsGreaterThanToken,
-    PlusToken,
-    MinusToken,
-    AsteriskToken,
-    AsteriskAsteriskToken,
-    SlashToken,
-    PercentToken,
-    PlusPlusToken,
-    MinusMinusToken,
-    LessThanLessThanToken,
-    GreaterThanGreaterThanToken,
-    GreaterThanGreaterThanGreaterThanToken,
-    AmpersandToken,
-    BarToken,
-    CaretToken,
-    ExclamationToken,
-    TildeToken,
-    AmpersandAmpersandToken,
-    BarBarToken,
-    QuestionToken,
-    ColonToken,
-    AtToken,
-    // Assignments
-    EqualsToken,
-    PlusEqualsToken,
-    MinusEqualsToken,
-    AsteriskEqualsToken,
-    AsteriskAsteriskEqualsToken,
-    SlashEqualsToken,
-    PercentEqualsToken,
-    LessThanLessThanEqualsToken,
-    GreaterThanGreaterThanEqualsToken,
-    GreaterThanGreaterThanGreaterThanEqualsToken,
-    AmpersandEqualsToken,
-    BarEqualsToken,
-    CaretEqualsToken,
+
+    Token(Token),
+
     // Identifiers
     Identifier,
-    // Reserved words
-    BreakKeyword,
-    CaseKeyword,
-    CatchKeyword,
-    ClassKeyword,
-    ConstKeyword,
-    ContinueKeyword,
-    DebuggerKeyword,
-    DefaultKeyword,
-    DeleteKeyword,
-    DoKeyword,
-    ElseKeyword,
-    EnumKeyword,
-    ExportKeyword,
-    ExtendsKeyword,
-    FalseKeyword,
-    FinallyKeyword,
-    ForKeyword,
-    FunctionKeyword,
-    IfKeyword,
-    ImportKeyword,
-    InKeyword,
-    InstanceOfKeyword,
-    NewKeyword,
-    NullKeyword,
-    ReturnKeyword,
-    SuperKeyword,
-    SwitchKeyword,
-    ThisKeyword,
-    ThrowKeyword,
-    TrueKeyword,
-    TryKeyword,
-    TypeOfKeyword,
-    VarKeyword,
-    VoidKeyword,
-    WhileKeyword,
-    WithKeyword,
-    // Strict mode reserved words
-    ImplementsKeyword,
-    InterfaceKeyword,
-    LetKeyword,
-    PackageKeyword,
-    PrivateKeyword,
-    ProtectedKeyword,
-    PublicKeyword,
-    StaticKeyword,
-    YieldKeyword,
-    // Contextual keywords
-    AbstractKeyword,
-    AsKeyword,
-    AnyKeyword,
-    AsyncKeyword,
-    AwaitKeyword,
-    BooleanKeyword,
-    ConstructorKeyword,
-    DeclareKeyword,
-    GetKeyword,
-    InferKeyword,
-    IsKeyword,
-    KeyOfKeyword,
-    ModuleKeyword,
-    NamespaceKeyword,
-    NeverKeyword,
-    ReadonlyKeyword,
-    RequireKeyword,
-    NumberKeyword,
-    ObjectKeyword,
-    SetKeyword,
-    StringKeyword,
-    SymbolKeyword,
-    TypeKeyword,
-    UndefinedKeyword,
-    UniqueKeyword,
-    UnknownKeyword,
-    FromKeyword,
-    GlobalKeyword,
-    BigIntKeyword,
-    OfKeyword, // LastKeyword and LastToken and LastContextualKeyword
+
+    Keyword(Keyword),
 
     // Parse tree nodes
 
@@ -369,26 +247,29 @@ pub enum SyntaxKind {
     Count,
 }
 
-impl SyntaxKind {
-    pub fn is_reserved_word(self) -> bool {
-        let code = self.to_u32().unwrap();
-        code >= SyntaxKind::BreakKeyword.to_u32().unwrap()
-            && code <= SyntaxKind::WithKeyword.to_u32().unwrap()
-    }
-
-    pub fn is_identifier_or_keyword(self) -> bool {
-        let code = self.to_u32().unwrap();
-        code >= SyntaxKind::Identifier.to_u32().unwrap()
+impl From<Token> for SyntaxKind {
+    fn from(t: Token) -> SyntaxKind {
+        SyntaxKind::Token(t)
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    fn correct_is_reserved_word() {
-        assert!(SyntaxKind::WhileKeyword.is_reserved_word());
-        assert!(SyntaxKind::WithKeyword.is_reserved_word());
-        assert!(!SyntaxKind::ConstructorKeyword.is_reserved_word());
-        assert!(!SyntaxKind::Identifier.is_reserved_word());
+impl From<Keyword> for SyntaxKind {
+    fn from(k: Keyword) -> SyntaxKind {
+        SyntaxKind::Keyword(k)
+    }
+}
+
+impl SyntaxKind {
+    /// Returns true for `Identifier` or a keyword.
+    pub(crate) fn is_identifier_or_keyword(&self) -> bool {
+        // Result sometimes differs from ts version
+        match self {
+            SyntaxKind::Identifier | SyntaxKind::Keyword(_) => true,
+            _ => false,
+        }
+    }
+
+    pub(crate) fn is_identifier_or_keyword_or_greater_than(&self) -> bool {
+        self.is_identifier_or_keyword() || *self == SyntaxKind::Token(Token::GreaterThan)
     }
 }

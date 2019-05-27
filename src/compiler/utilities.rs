@@ -20,6 +20,7 @@ pub fn get_operator_associativity(
     operator: SyntaxKind,
     has_arguments: bool,
 ) -> Associativity {
+    use crate::compiler::types::syntax_kind::Token::*;
     use SyntaxKind::*;
     match kind {
         NewExpression => {
@@ -37,20 +38,20 @@ pub fn get_operator_associativity(
         | ConditionalExpression
         | YieldExpression => Associativity::Right,
         BinaryExpression => match operator {
-            AsteriskAsteriskToken
-            | EqualsToken
-            | PlusEqualsToken
-            | MinusEqualsToken
-            | AsteriskAsteriskEqualsToken
-            | AsteriskEqualsToken
-            | SlashEqualsToken
-            | PercentEqualsToken
-            | LessThanLessThanEqualsToken
-            | GreaterThanGreaterThanEqualsToken
-            | GreaterThanGreaterThanGreaterThanEqualsToken
-            | AmpersandEqualsToken
-            | CaretEqualsToken
-            | BarEqualsToken => Associativity::Right,
+            Token(AsteriskAsterisk)
+            | Token(Equals)
+            | Token(PlusEquals)
+            | Token(MinusEquals)
+            | Token(AsteriskAsteriskEquals)
+            | Token(AsteriskEquals)
+            | Token(SlashEquals)
+            | Token(PercentEquals)
+            | Token(LessThanLessThanEquals)
+            | Token(GreaterThanGreaterThanEquals)
+            | Token(GreaterThanGreaterThanGreaterThanEquals)
+            | Token(AmpersandEquals)
+            | Token(CaretEquals)
+            | Token(BarEquals) => Associativity::Right,
             _ => Associativity::Left,
         },
         _ => Associativity::Left,
@@ -58,30 +59,31 @@ pub fn get_operator_associativity(
 }
 
 pub fn get_binary_operator_precedence(kind: SyntaxKind) -> Precedence {
+    use crate::compiler::types::syntax_kind::{Keyword::*, Token::*};
     use SyntaxKind::*;
     Precedence(match kind {
-        BarBarToken => 5,
-        AmpersandAmpersandToken => 6,
-        BarToken => 7,
-        CaretToken => 8,
-        AmpersandToken => 9,
-        EqualsEqualsToken
-        | ExclamationEqualsToken
-        | EqualsEqualsEqualsToken
-        | ExclamationEqualsEqualsToken => 10,
-        LessThanToken
-        | GreaterThanToken
-        | LessThanEqualsToken
-        | GreaterThanEqualsToken
-        | InstanceOfKeyword
-        | InKeyword
-        | AsKeyword => 11,
-        LessThanLessThanToken
-        | GreaterThanGreaterThanToken
-        | GreaterThanGreaterThanGreaterThanToken => 12,
-        PlusToken | MinusToken => 13,
-        AsteriskToken | SlashToken | PercentToken => 14,
-        AsteriskAsteriskToken => 15,
+        Token(BarBar) => 5,
+        Token(AmpersandAmpersand) => 6,
+        Token(Bar) => 7,
+        Token(Caret) => 8,
+        Token(Ampersand) => 9,
+        Token(EqualsEquals)
+        | Token(ExclamationEquals)
+        | Token(EqualsEqualsEquals)
+        | Token(ExclamationEqualsEquals) => 10,
+        Token(LessThan)
+        | Token(GreaterThan)
+        | Token(LessThanEquals)
+        | Token(GreaterThanEquals)
+        | Keyword(InstanceOf)
+        | Keyword(In)
+        | Keyword(As) => 11,
+        Token(LessThanLessThan)
+        | Token(GreaterThanGreaterThan)
+        | Token(GreaterThanGreaterThanGreaterThan) => 12,
+        Token(Plus) | Token(Minus) => 13,
+        Token(Asterisk) | Token(Slash) | Token(Percent) => 14,
+        Token(AsteriskAsterisk) => 15,
         // -1 is lower than all other precedences.  Returning it will cause binary expression
         // parsing to stop.
         _ => -1,
@@ -93,6 +95,8 @@ pub fn get_operator_precedence(
     operator_kind: SyntaxKind,
     has_arguments: bool,
 ) -> Precedence {
+    use crate::compiler::types::syntax_kind::Keyword::*;
+    use crate::compiler::types::syntax_kind::Token::*;
     use SyntaxKind::*;
     Precedence(match node_kind {
         CommaListExpression => 0,
@@ -100,19 +104,19 @@ pub fn get_operator_precedence(
         YieldExpression => 2,
         ConditionalExpression => 4,
         BinaryExpression => match operator_kind {
-            CommaToken => 0,
-            EqualsToken
-            | PlusEqualsToken
-            | MinusEqualsToken
-            | AsteriskAsteriskEqualsToken
-            | SlashEqualsToken
-            | PercentEqualsToken
-            | LessThanLessThanEqualsToken
-            | GreaterThanGreaterThanEqualsToken
-            | GreaterThanGreaterThanGreaterThanEqualsToken
-            | AmpersandEqualsToken
-            | CaretEqualsToken
-            | BarEqualsToken => 3,
+            Token(Comma) => 0,
+            Token(Equals)
+            | Token(PlusEquals)
+            | Token(MinusEquals)
+            | Token(AsteriskAsteriskEquals)
+            | Token(SlashEquals)
+            | Token(PercentEquals)
+            | Token(LessThanLessThanEquals)
+            | Token(GreaterThanGreaterThanEquals)
+            | Token(GreaterThanGreaterThanGreaterThanEquals)
+            | Token(AmpersandEquals)
+            | Token(CaretEquals)
+            | Token(BarEquals) => 3,
             _ => get_binary_operator_precedence(operator_kind).0,
         },
         PrefixUnaryExpression
@@ -130,12 +134,12 @@ pub fn get_operator_precedence(
             }
         }
         TaggedTemplateExpression | PropertyAccessExpression | ElementAccessExpression => 19,
-        ThisKeyword
-        | SuperKeyword
+        Keyword(This)
+        | Keyword(Super)
         | Identifier
-        | NullKeyword
-        | TrueKeyword
-        | FalseKeyword
+        | Keyword(Null)
+        | Keyword(True)
+        | Keyword(False)
         | NumericLiteral
         | BigIntLiteral
         | StringLiteral

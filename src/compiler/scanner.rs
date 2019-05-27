@@ -1,281 +1,12 @@
+use crate::compiler::types::pseudobigint::parse_pseudo_big_int;
 use crate::compiler::types::ScriptTarget;
 use crate::compiler::types::{
-    character_codes, diagnostic, LanguageVariant, SyntaxKind, TokenFlags,
+    character_codes, diagnostic, syntax_kind, syntax_kind::Token, LanguageVariant, SyntaxKind,
+    TokenFlags,
 };
 use lazy_static::*;
-use num_traits::ToPrimitive;
 use std::convert::TryFrom;
-
-const ABSTRACT: &str = "abstract";
-const ANY: &str = "any";
-const AS: &str = "as";
-const BIGINT: &str = "bigint";
-const BOOLEAN: &str = "boolean";
-const BREAK: &str = "break";
-const CASE: &str = "case";
-const CATCH: &str = "catch";
-const CLASS: &str = "class";
-const CONTINUE: &str = "continue";
-const CONST: &str = "const";
-const CONSTRUCTOR: &str = "constructor";
-const DEBUGGER: &str = "debugger";
-const DECLARE: &str = "declare";
-const DEFAULT: &str = "default";
-const DELETE: &str = "delete";
-const DO: &str = "do";
-const ELSE: &str = "else";
-const ENUM: &str = "enum";
-const EXPORT: &str = "export";
-const EXTENDS: &str = "extends";
-const FALSE: &str = "false";
-const FINALLY: &str = "finally";
-const FOR: &str = "for";
-const FROM: &str = "from";
-const FUNCTION: &str = "function";
-const GET: &str = "get";
-const IF: &str = "if";
-const IMPLEMENTS: &str = "implements";
-const IMPORT: &str = "import";
-const IN: &str = "in";
-const INFER: &str = "infer";
-const INSTANCEOF: &str = "instanceof";
-const INTERFACE: &str = "interface";
-const IS: &str = "is";
-const KEYOF: &str = "keyof";
-const LET: &str = "let";
-const MODULE: &str = "module";
-const NAMESPACE: &str = "namespace";
-const NEVER: &str = "never";
-const NEW: &str = "new";
-const NULL: &str = "null";
-const NUMBER: &str = "number";
-const OBJECT: &str = "object";
-const PACKAGE: &str = "package";
-const PRIVATE: &str = "private";
-const PROTECTED: &str = "protected";
-const PUBLIC: &str = "public";
-const READONLY: &str = "readonly";
-const REQUIRE: &str = "require";
-const GLOBAL: &str = "global";
-const RETURN: &str = "return";
-const SET: &str = "set";
-const STATIC: &str = "static";
-const STRING: &str = "string";
-const SUPER: &str = "super";
-const SWITCH: &str = "switch";
-const SYMBOL: &str = "symbol";
-const THIS: &str = "this";
-const THROW: &str = "throw";
-const TRUE: &str = "true";
-const TRY: &str = "try";
-const TYPE: &str = "type";
-const TYPEOF: &str = "typeof";
-const UNDEFINED: &str = "undefined";
-const UNIQUE: &str = "unique";
-const UNKNOWN: &str = "unknown";
-const VAR: &str = "var";
-const VOID: &str = "void";
-const WHILE: &str = "while";
-const WITH: &str = "with";
-const YIELD: &str = "yield";
-const ASYNC: &str = "async";
-const AWAIT: &str = "await";
-const OF: &str = "of";
-const OPEN_BRACE_TOKEN: &str = "{";
-const CLOSE_BRACE_TOKEN: &str = "}";
-const OPEN_PAREN_TOKEN: &str = "(";
-const CLOSE_PAREN_TOKEN: &str = ")";
-const OPEN_BRACKET_TOKEN: &str = "[";
-const CLOSE_BRACKET_TOKEN: &str = "]";
-const DOT_TOKEN: &str = ".";
-const DOT_DOT_DOT_TOKEN: &str = "...";
-const SEMICOLON_TOKEN: &str = ";";
-const COMMA_TOKEN: &str = ",";
-const LESS_THAN_TOKEN: &str = "<";
-const GREATER_THAN_TOKEN: &str = ">";
-const LESS_THAN_EQUALS_TOKEN: &str = "<=";
-const GREATER_THAN_EQUALS_TOKEN: &str = ">=";
-const EQUALS_EQUALS_TOKEN: &str = "==";
-const EXCLAMATION_EQUALS_TOKEN: &str = "!=";
-const EQUALS_EQUALS_EQUALS_TOKEN: &str = "===";
-const EXCLAMATION_EQUALS_EQUALS_TOKEN: &str = "!==";
-const EQUALS_GREATER_THAN_TOKEN: &str = "=>";
-const PLUS_TOKEN: &str = "+";
-const MINUS_TOKEN: &str = "-";
-const ASTERISK_ASTERISK_TOKEN: &str = "**";
-const ASTERISK_TOKEN: &str = "*";
-const SLASH_TOKEN: &str = "/";
-const PERCENT_TOKEN: &str = "%";
-const PLUS_PLUS_TOKEN: &str = "++";
-const MINUS_MINUS_TOKEN: &str = "--";
-const LESS_THAN_LESS_THAN_TOKEN: &str = "<<";
-const LESS_THAN_SLASH_TOKEN: &str = "</";
-const GREATER_THAN_GREATER_THAN_TOKEN: &str = ">>";
-const GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN: &str = ">>>";
-const AMPERSAND_TOKEN: &str = "&";
-const BAR_TOKEN: &str = "|";
-const CARET_TOKEN: &str = "^";
-const EXCLAMATION_TOKEN: &str = "!";
-const TILDE_TOKEN: &str = "~";
-const AMPERSAND_AMPERSAND_TOKEN: &str = "&&";
-const BAR_BAR_TOKEN: &str = "||";
-const QUESTION_TOKEN: &str = "?";
-const COLON_TOKEN: &str = ":";
-const EQUALS_TOKEN: &str = "=";
-const PLUS_EQUALS_TOKEN: &str = "+=";
-const MINUS_EQUALS_TOKEN: &str = "-=";
-const ASTERISK_EQUALS_TOKEN: &str = "*=";
-const ASTERISK_ASTERISK_EQUALS_TOKEN: &str = "**=";
-const SLASH_EQUALS_TOKEN: &str = "/=";
-const PERCENT_EQUALS_TOKEN: &str = "%=";
-const LESS_THAN_LESS_THAN_EQUALS_TOKEN: &str = "<<=";
-const GREATER_THAN_GREATER_THAN_EQUALS_TOKEN: &str = ">>=";
-const GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN: &str = ">>>=";
-const AMPERSAND_EQUALS_TOKEN: &str = "&=";
-const BAR_EQUALS_TOKEN: &str = "|=";
-const CARET_EQUALS_TOKEN: &str = "^=";
-const AT_TOKEN: &str = "@";
-
-pub fn token_to_string(token: SyntaxKind) -> Option<&'static str> {
-    match token {
-        SyntaxKind::AbstractKeyword => Some(ABSTRACT),
-        SyntaxKind::AnyKeyword => Some(ANY),
-        SyntaxKind::AsKeyword => Some(AS),
-        SyntaxKind::BigIntKeyword => Some(BIGINT),
-        SyntaxKind::BooleanKeyword => Some(BOOLEAN),
-        SyntaxKind::BreakKeyword => Some(BREAK),
-        SyntaxKind::CaseKeyword => Some(CASE),
-        SyntaxKind::CatchKeyword => Some(CATCH),
-        SyntaxKind::ClassKeyword => Some(CLASS),
-        SyntaxKind::ContinueKeyword => Some(CONTINUE),
-        SyntaxKind::ConstKeyword => Some(CONST),
-        SyntaxKind::ConstructorKeyword => Some(CONSTRUCTOR),
-        SyntaxKind::DebuggerKeyword => Some(DEBUGGER),
-        SyntaxKind::DeclareKeyword => Some(DECLARE),
-        SyntaxKind::DefaultKeyword => Some(DEFAULT),
-        SyntaxKind::DeleteKeyword => Some(DELETE),
-        SyntaxKind::DoKeyword => Some(DO),
-        SyntaxKind::ElseKeyword => Some(ELSE),
-        SyntaxKind::EnumKeyword => Some(ENUM),
-        SyntaxKind::ExportKeyword => Some(EXPORT),
-        SyntaxKind::ExtendsKeyword => Some(EXTENDS),
-        SyntaxKind::FalseKeyword => Some(FALSE),
-        SyntaxKind::FinallyKeyword => Some(FINALLY),
-        SyntaxKind::ForKeyword => Some(FOR),
-        SyntaxKind::FromKeyword => Some(FROM),
-        SyntaxKind::FunctionKeyword => Some(FUNCTION),
-        SyntaxKind::GetKeyword => Some(GET),
-        SyntaxKind::IfKeyword => Some(IF),
-        SyntaxKind::ImplementsKeyword => Some(IMPLEMENTS),
-        SyntaxKind::ImportKeyword => Some(IMPORT),
-        SyntaxKind::InKeyword => Some(IN),
-        SyntaxKind::InferKeyword => Some(INFER),
-        SyntaxKind::InstanceOfKeyword => Some(INSTANCEOF),
-        SyntaxKind::InterfaceKeyword => Some(INTERFACE),
-        SyntaxKind::IsKeyword => Some(IS),
-        SyntaxKind::KeyOfKeyword => Some(KEYOF),
-        SyntaxKind::LetKeyword => Some(LET),
-        SyntaxKind::ModuleKeyword => Some(MODULE),
-        SyntaxKind::NamespaceKeyword => Some(NAMESPACE),
-        SyntaxKind::NeverKeyword => Some(NEVER),
-        SyntaxKind::NewKeyword => Some(NEW),
-        SyntaxKind::NullKeyword => Some(NULL),
-        SyntaxKind::NumberKeyword => Some(NUMBER),
-        SyntaxKind::ObjectKeyword => Some(OBJECT),
-        SyntaxKind::PackageKeyword => Some(PACKAGE),
-        SyntaxKind::PrivateKeyword => Some(PRIVATE),
-        SyntaxKind::ProtectedKeyword => Some(PROTECTED),
-        SyntaxKind::PublicKeyword => Some(PUBLIC),
-        SyntaxKind::ReadonlyKeyword => Some(READONLY),
-        SyntaxKind::RequireKeyword => Some(REQUIRE),
-        SyntaxKind::GlobalKeyword => Some(GLOBAL),
-        SyntaxKind::ReturnKeyword => Some(RETURN),
-        SyntaxKind::SetKeyword => Some(SET),
-        SyntaxKind::StaticKeyword => Some(STATIC),
-        SyntaxKind::StringKeyword => Some(STRING),
-        SyntaxKind::SuperKeyword => Some(SUPER),
-        SyntaxKind::SwitchKeyword => Some(SWITCH),
-        SyntaxKind::SymbolKeyword => Some(SYMBOL),
-        SyntaxKind::ThisKeyword => Some(THIS),
-        SyntaxKind::ThrowKeyword => Some(THROW),
-        SyntaxKind::TrueKeyword => Some(TRUE),
-        SyntaxKind::TryKeyword => Some(TRY),
-        SyntaxKind::TypeKeyword => Some(TYPE),
-        SyntaxKind::TypeOfKeyword => Some(TYPEOF),
-        SyntaxKind::UndefinedKeyword => Some(UNDEFINED),
-        SyntaxKind::UniqueKeyword => Some(UNIQUE),
-        SyntaxKind::UnknownKeyword => Some(UNKNOWN),
-        SyntaxKind::VarKeyword => Some(VAR),
-        SyntaxKind::VoidKeyword => Some(VOID),
-        SyntaxKind::WhileKeyword => Some(WHILE),
-        SyntaxKind::WithKeyword => Some(WITH),
-        SyntaxKind::YieldKeyword => Some(YIELD),
-        SyntaxKind::AsyncKeyword => Some(ASYNC),
-        SyntaxKind::AwaitKeyword => Some(AWAIT),
-        SyntaxKind::OfKeyword => Some(OF),
-        SyntaxKind::OpenBraceToken => Some(OPEN_BRACE_TOKEN),
-        SyntaxKind::CloseBraceToken => Some(CLOSE_BRACE_TOKEN),
-        SyntaxKind::OpenParenToken => Some(OPEN_PAREN_TOKEN),
-        SyntaxKind::CloseParenToken => Some(CLOSE_PAREN_TOKEN),
-        SyntaxKind::OpenBracketToken => Some(OPEN_BRACKET_TOKEN),
-        SyntaxKind::CloseBracketToken => Some(CLOSE_BRACKET_TOKEN),
-        SyntaxKind::DotToken => Some(DOT_TOKEN),
-        SyntaxKind::DotDotDotToken => Some(DOT_DOT_DOT_TOKEN),
-        SyntaxKind::SemicolonToken => Some(SEMICOLON_TOKEN),
-        SyntaxKind::CommaToken => Some(COMMA_TOKEN),
-        SyntaxKind::LessThanToken => Some(LESS_THAN_TOKEN),
-        SyntaxKind::GreaterThanToken => Some(GREATER_THAN_TOKEN),
-        SyntaxKind::LessThanEqualsToken => Some(LESS_THAN_EQUALS_TOKEN),
-        SyntaxKind::GreaterThanEqualsToken => Some(GREATER_THAN_EQUALS_TOKEN),
-        SyntaxKind::EqualsEqualsToken => Some(EQUALS_EQUALS_TOKEN),
-        SyntaxKind::ExclamationEqualsToken => Some(EXCLAMATION_EQUALS_TOKEN),
-        SyntaxKind::EqualsEqualsEqualsToken => Some(EQUALS_EQUALS_EQUALS_TOKEN),
-        SyntaxKind::ExclamationEqualsEqualsToken => Some(EXCLAMATION_EQUALS_EQUALS_TOKEN),
-        SyntaxKind::EqualsGreaterThanToken => Some(EQUALS_GREATER_THAN_TOKEN),
-        SyntaxKind::PlusToken => Some(PLUS_TOKEN),
-        SyntaxKind::MinusToken => Some(MINUS_TOKEN),
-        SyntaxKind::AsteriskAsteriskToken => Some(ASTERISK_ASTERISK_TOKEN),
-        SyntaxKind::AsteriskToken => Some(ASTERISK_TOKEN),
-        SyntaxKind::SlashToken => Some(SLASH_TOKEN),
-        SyntaxKind::PercentToken => Some(PERCENT_TOKEN),
-        SyntaxKind::PlusPlusToken => Some(PLUS_PLUS_TOKEN),
-        SyntaxKind::MinusMinusToken => Some(MINUS_MINUS_TOKEN),
-        SyntaxKind::LessThanLessThanToken => Some(LESS_THAN_LESS_THAN_TOKEN),
-        SyntaxKind::LessThanSlashToken => Some(LESS_THAN_SLASH_TOKEN),
-        SyntaxKind::GreaterThanGreaterThanToken => Some(GREATER_THAN_GREATER_THAN_TOKEN),
-        SyntaxKind::GreaterThanGreaterThanGreaterThanToken => {
-            Some(GREATER_THAN_GREATER_THAN_GREATER_THAN_TOKEN)
-        }
-        SyntaxKind::AmpersandToken => Some(AMPERSAND_TOKEN),
-        SyntaxKind::BarToken => Some(BAR_TOKEN),
-        SyntaxKind::CaretToken => Some(CARET_TOKEN),
-        SyntaxKind::ExclamationToken => Some(EXCLAMATION_TOKEN),
-        SyntaxKind::TildeToken => Some(TILDE_TOKEN),
-        SyntaxKind::AmpersandAmpersandToken => Some(AMPERSAND_AMPERSAND_TOKEN),
-        SyntaxKind::BarBarToken => Some(BAR_BAR_TOKEN),
-        SyntaxKind::QuestionToken => Some(QUESTION_TOKEN),
-        SyntaxKind::ColonToken => Some(COLON_TOKEN),
-        SyntaxKind::EqualsToken => Some(EQUALS_TOKEN),
-        SyntaxKind::PlusEqualsToken => Some(PLUS_EQUALS_TOKEN),
-        SyntaxKind::MinusEqualsToken => Some(MINUS_EQUALS_TOKEN),
-        SyntaxKind::AsteriskEqualsToken => Some(ASTERISK_EQUALS_TOKEN),
-        SyntaxKind::AsteriskAsteriskEqualsToken => Some(ASTERISK_ASTERISK_EQUALS_TOKEN),
-        SyntaxKind::SlashEqualsToken => Some(SLASH_EQUALS_TOKEN),
-        SyntaxKind::PercentEqualsToken => Some(PERCENT_EQUALS_TOKEN),
-        SyntaxKind::LessThanLessThanEqualsToken => Some(LESS_THAN_LESS_THAN_EQUALS_TOKEN),
-        SyntaxKind::GreaterThanGreaterThanEqualsToken => {
-            Some(GREATER_THAN_GREATER_THAN_EQUALS_TOKEN)
-        }
-        SyntaxKind::GreaterThanGreaterThanGreaterThanEqualsToken => {
-            Some(GREATER_THAN_GREATER_THAN_GREATER_THAN_EQUALS_TOKEN)
-        }
-        SyntaxKind::AmpersandEqualsToken => Some(AMPERSAND_EQUALS_TOKEN),
-        SyntaxKind::BarEqualsToken => Some(BAR_EQUALS_TOKEN),
-        SyntaxKind::CaretEqualsToken => Some(CARET_EQUALS_TOKEN),
-        SyntaxKind::AtToken => Some(AT_TOKEN),
-        _ => None,
-    }
-}
+use std::str::FromStr;
 
 fn is_identifier_start(c: char, language_version: ScriptTarget) -> bool {
     c.is_ascii_alphabetic()
@@ -392,7 +123,7 @@ pub struct Scanner {
     skip_trivia: bool,
 }
 
-type ErrorCallback = (Fn(diagnostic::Message, usize));
+pub type ErrorCallback = (Fn(diagnostic::Message, usize));
 
 impl Scanner {
     pub fn new(
@@ -430,6 +161,10 @@ impl Scanner {
             language_variant,
             skip_trivia,
         }
+    }
+
+    pub fn set_on_error(&mut self, on_error: Option<Box<ErrorCallback>>) {
+        self.on_error = on_error;
     }
 
     fn error(
@@ -483,49 +218,43 @@ impl Scanner {
     }
 
     pub fn is_identifier(&self) -> bool {
-        self.token == SyntaxKind::Identifier
-            // token > LastReservedWord
-            || !self.token.to_u32().unwrap() > SyntaxKind::WithKeyword.to_u32().unwrap()
+        unimplemented!();
     }
 
     pub fn is_reserved_word(&self) -> bool {
-        self.token.is_reserved_word()
+        unimplemented!();
     }
 
     pub fn is_unterminated(&self) -> bool {
         self.token_flags.contains(TokenFlags::UNTERMINATED)
     }
 
-    pub fn token_flags(&self) -> TokenFlags {
+    pub(crate) fn token_flags(&self) -> TokenFlags {
         self.token_flags
     }
 
     pub fn re_scan_greater_token(&mut self) -> SyntaxKind {
-        if self.token == SyntaxKind::GreaterThanToken {
+        use syntax_kind::Token::*;
+        if self.token == SyntaxKind::Token(GreaterThan) {
             if self.text.chars().nth(self.pos) == Some('>') {
                 if self.text.chars().nth(self.pos + 1) == Some('>') {
                     if self.text.chars().nth(self.pos + 2) == Some('=') {
                         self.pos += 3;
-                        self.token = SyntaxKind::GreaterThanGreaterThanGreaterThanEqualsToken;
-                        return self.token;
+                        self.token = SyntaxKind::Token(GreaterThanGreaterThanGreaterThanEquals);
                     } else {
                         self.pos += 2;
-                        self.token = SyntaxKind::GreaterThanGreaterThanGreaterThanToken;
-                        return self.token;
+                        self.token = SyntaxKind::Token(GreaterThanGreaterThanGreaterThan);
                     }
                 } else if self.text.chars().nth(self.pos + 1) == Some('=') {
                     self.pos += 2;
-                    self.token = SyntaxKind::GreaterThanGreaterThanEqualsToken;
-                    return self.token;
+                    self.token = SyntaxKind::Token(GreaterThanGreaterThanEquals);
                 } else {
                     self.pos += 1;
-                    self.token = SyntaxKind::GreaterThanGreaterThanToken;
-                    return self.token;
+                    self.token = SyntaxKind::Token(GreaterThanGreaterThan);
                 }
             } else if self.text.chars().nth(self.pos) == Some('=') {
                 self.pos += 1;
-                self.token = SyntaxKind::GreaterThanEqualsToken;
-                return self.token;
+                self.token = SyntaxKind::Token(GreaterThanEquals);
             }
         }
         self.token
@@ -562,6 +291,14 @@ impl Scanner {
         self.token
     }
 
+    pub fn re_scan_less_than_token(&mut self) -> SyntaxKind {
+        if self.token == SyntaxKind::Token(Token::LessThanLessThan) {
+            self.pos = self.token_pos + 1;
+            self.token = SyntaxKind::Token(Token::LessThan);
+        }
+        self.token
+    }
+
     pub fn scan_jsx_attribute_value(&mut self) -> SyntaxKind {
         self.start_pos = self.pos;
 
@@ -575,6 +312,22 @@ impl Scanner {
         }
     }
 
+    pub fn re_scan_jsx_token(&mut self) -> syntax_kind::JsxToken {
+        self.token_pos = self.start_pos;
+        self.pos = self.token_pos;
+        let token = self.scan_jsx_token();
+        self.token = token.into();
+        token
+    }
+
+    pub fn scan_jsx_token(&mut self) -> syntax_kind::JsxToken {
+        unimplemented!();
+    }
+
+    pub fn scan_jsdoc_token(&mut self) -> syntax_kind::JsDoc {
+        unimplemented!();
+    }
+
     pub fn scan(&mut self) -> SyntaxKind {
         unimplemented!();
     }
@@ -584,10 +337,12 @@ impl Scanner {
     }
 
     pub fn re_scan_slash_token(&mut self) -> SyntaxKind {
-        if self.token == SyntaxKind::SlashToken || self.token == SyntaxKind::SlashEqualsToken {
-            let p = self.token_pos + 1;
-            let in_escape = false;
-            let in_character_class = false;
+        if self.token == SyntaxKind::Token(Token::Slash)
+            || self.token == SyntaxKind::Token(Token::SlashEquals)
+        {
+            let mut p = self.token_pos + 1;
+            let mut in_escape = false;
+            let mut in_character_class = false;
             loop {
                 // If we reach the end of a file, or hit a newline, then this is an unterminated
                 // regex.  Report error and return what we have so far.
@@ -602,14 +357,53 @@ impl Scanner {
                 }
 
                 let ch = self.text.chars().nth(p);
+                if ch.map(|c| is_line_break(c)).unwrap_or(false) {
+                    self.token_flags |= TokenFlags::UNTERMINATED;
+                    self.error(
+                        diagnostic::Message::UnterminatedRegularExpressionLiteral,
+                        None,
+                        None,
+                    );
+                    break;
+                }
+
+                if in_escape {
+                    // Parsing an escape character;
+                    // reset the flag and just advance to the next char.
+                    in_escape = false;
+                } else if ch == Some('/') && !in_character_class {
+                    // A slash within a character class is permissible,
+                    // but in general it signals the end of the regexp literal.
+                    p += 1;
+                    break;
+                } else if ch == Some('[') {
+                    in_character_class = true;
+                } else if ch == Some('\\') {
+                    in_escape = true;
+                } else if ch == Some(']') {
+                    in_character_class = false;
+                }
+                p += 1;
             }
+
+            let ch = self.text.chars().nth(p);
+            while ch
+                .map(|c| is_identifier_part(c, self.language_version))
+                .unwrap_or(false)
+            {
+                p += 1;
+            }
+            self.pos = p;
+            self.token_value = Some(self.text[self.token_pos..self.pos].to_string());
+            self.token = SyntaxKind::RegularExpressionLiteral;
         }
+
         self.token
     }
 
     pub fn re_scan_template_token(&mut self) -> SyntaxKind {
         assert!(
-            self.token == SyntaxKind::CloseBraceToken,
+            self.token == SyntaxKind::Token(Token::CloseBrace),
             "'reScanTemplateToken' should only be called on a '}'"
         );
         self.pos = self.token_pos;
@@ -619,6 +413,14 @@ impl Scanner {
 
     pub fn set_language_variant(&mut self, variant: LanguageVariant) {
         self.language_variant = variant;
+    }
+
+    pub(crate) fn set_in_jsdoc_type(&mut self, in_type: bool) {
+        if in_type {
+            self.in_jsdoc_type += 1;
+        } else {
+            self.in_jsdoc_type -= 1;
+        }
     }
 
     /// Sets the current 'tokenValue' and returns a NoSubstitutionTemplateLiteral or
@@ -702,6 +504,8 @@ impl Scanner {
         resulting_token
     }
 
+    /// Invokes the callback with the scanner set to scan the specified range. When the callback
+    /// returns, the scanner is restored to the state it was in before scanRange was called.
     pub fn scan_range<T, U: (Fn() -> T)>(&mut self, start: usize, length: usize, callback: U) -> T {
         let save_end = self.end;
         let save_pos = self.pos;
@@ -725,13 +529,23 @@ impl Scanner {
         result
     }
 
-    fn set_text(&mut self, text: String, start: Option<usize>, length: Option<usize>) {
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// Sets the text for the scanner to scan. An optional subrange starting point and length
+    /// can be provided to have the scanner only scan a portion of the text.
+    pub fn set_text(&mut self, text: String, start: Option<usize>, length: Option<usize>) {
         self.text = text;
         self.end = length.unwrap_or_else(|| self.text.len() + start.unwrap_or(0));
         self.set_text_pos(start.unwrap_or(0))
     }
 
-    fn set_text_pos(&mut self, text_pos: usize) {
+    pub fn set_script_target(&mut self, script_target: ScriptTarget) {
+        self.language_version = script_target;
+    }
+
+    pub fn set_text_pos(&mut self, text_pos: usize) {
         self.pos = text_pos;
         self.start_pos = text_pos;
         self.token_pos = text_pos;
@@ -903,9 +717,50 @@ impl Scanner {
         }
 
         if decimal_fragment.is_some() || self.token_flags.contains(TokenFlags::SCIENTIFIC) {
-            unimplemented!();
+            let is_scientific =
+                decimal_fragment.is_none() && self.token_flags.contains(TokenFlags::SCIENTIFIC);
+            self.check_for_identifier_start_after_numeric_literal(start, is_scientific);
+            (
+                SyntaxKind::NumericLiteral,
+                result.parse::<isize>().unwrap().to_string(),
+            )
         } else {
-            unimplemented!();
+            self.token_value = Some(result);
+            // if value is an integer, check whether it is a bigint
+            let value_type = self.check_big_int_suffix();
+            (value_type, self.token_value.as_ref().unwrap().to_string())
+        }
+    }
+
+    fn check_big_int_suffix(&mut self) -> SyntaxKind {
+        if self.text.chars().nth(self.pos) == Some('n') {
+            self.token_value
+                .get_or_insert_with(String::new)
+                .push_str("n");
+            // Use base 10 instead of base 2 or base 8 for shorter literals
+            if self
+                .token_flags
+                .contains(TokenFlags::BINARY_OR_OCTAL_SPECIFIER)
+            {
+                self.token_value =
+                    Some(parse_pseudo_big_int(self.token_value.as_ref().unwrap()) + "n");
+            }
+            self.pos += 1;
+            SyntaxKind::BigIntLiteral
+        } else {
+            // Not a bigint, so can convert to number in simplified form
+            self.token_value = Some(
+                if self.token_flags.contains(TokenFlags::BINARY_SPECIFIER) {
+                    usize::from_str_radix(&self.token_value.as_ref().unwrap()[2..], 2)
+                } else if self.token_flags.contains(TokenFlags::OCTAL_SPECIFIER) {
+                    usize::from_str_radix(&self.token_value.as_ref().unwrap()[2..], 8)
+                } else {
+                    usize::from_str(self.token_value.as_ref().unwrap())
+                }
+                .unwrap()
+                .to_string(),
+            );
+            SyntaxKind::NumericLiteral
         }
     }
 
@@ -966,10 +821,17 @@ impl Scanner {
         result
     }
 
+    /// Invokes the provided callback then unconditionally restores the scanner to the state it
+    /// was in immediately prior to invoking the callback.  The result of invoking the callback
+    /// is returned from this function.
     pub fn look_ahead<T, U: (Fn() -> Option<T>)>(&mut self, cb: U) -> Option<T> {
         self.speculation_helper(cb, true)
     }
 
+    // Invokes the provided callback.  If the callback returns something falsy, then it restores
+    // the scanner to the state it was in immediately prior to invoking the callback.  If the
+    // callback returns something truthy, then the scanner state is not rolled back.  The result
+    // of invoking the callback is returned from this function.
     pub fn try_scan<T, U: (Fn() -> Option<T>)>(&mut self, cb: U) -> Option<T> {
         self.speculation_helper(cb, false)
     }
@@ -1159,18 +1021,25 @@ mod wasm {
     }
 
     /* Does not include line breaks. For that, see isWhiteSpaceLike(). */
-    #[wasm_bindgen(js_name = "isWhiteSpaceSingleLine")]
-    pub fn is_white_space_single_line(ch: u32) -> bool {
+    #[wasm_bindgen(js_name = isWhiteSpaceSingleLine)]
+    pub fn is_white_space_single_line(ch: char) -> bool {
         // Note: NextLine is in the Zs space, and should be considered to be a whitespace.
         // It is explicitly not a line-break as it isn't in the exact set specified by EcmaScript.
-
-        FromPrimitive::from_u32(ch)
-            .map(super::is_white_space_single_line)
-            .unwrap_or_default() // the default of bool is false
+        super::is_white_space_single_line(ch)
     }
 
-    #[wasm_bindgen(js_name = "couldStartTrivia")]
+    #[wasm_bindgen(js_name = couldStartTrivia)]
     pub fn could_start_trivia(text: &str, pos: usize) -> bool {
         super::could_start_trivia(text, pos)
+    }
+
+    #[wasm_bindgen(js_name = isWhiteSpaceLike)]
+    pub fn is_white_space_like(c: char) -> bool {
+        super::is_white_space_like(c)
+    }
+
+    #[wasm_bindgen(js_name = isLineBreak)]
+    pub fn is_line_break(ch: char) -> bool {
+        super::is_line_break(ch)
     }
 }
