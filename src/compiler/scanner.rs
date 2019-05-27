@@ -225,7 +225,55 @@ impl Scanner {
     }
 
     pub fn is_identifier(&self) -> bool {
-        unimplemented!();
+        use syntax_kind::Keyword::*;
+        use SyntaxKind::*;
+        match self.token {
+            Identifier => true,
+            Keyword(k) => match k {
+                Implements|
+                Interface|
+                Let|
+                Package|
+                Private|
+                Protected|
+                Public|
+                Static|
+                Yield|
+                // Contextual keywords
+                Abstract|
+                As|
+                Any|
+                Async|
+                Await|
+                Boolean|
+                syntax_kind::Keyword::Constructor|
+                Declare|
+                Get|
+                Infer|
+                Is|
+                KeyOf|
+                Module|
+                Namespace|
+                Never|
+                Readonly|
+                Require|
+                Number|
+                Object|
+                Set|
+                String|
+                Symbol|
+                Type|
+                Undefined|
+                Unique|
+                syntax_kind::Keyword::Unknown|
+                From|
+                Global|
+                BigInt|
+                Of => true,
+                _ => false
+            },
+            _ => false,
+        }
     }
 
     pub fn is_reserved_word(&self) -> bool {
@@ -467,7 +515,116 @@ impl Scanner {
     }
 
     pub fn scan_jsdoc_token(&mut self) -> syntax_kind::JsDoc {
-        unimplemented!();
+        self.token_pos = self.pos;
+        self.start_pos = self.token_pos;
+        if self.pos >= self.end {
+            self.token = SyntaxKind::EndOfFileToken;
+            return syntax_kind::JsDoc::EndOfFileToken;
+        }
+
+        let ch = self.text.chars().nth(self.pos).unwrap();
+        self.pos += 1;
+        match ch {
+            '\t' | character_codes::VERTICAL_TAB | character_codes::FORM_FEED | ' ' => {
+                while self
+                    .text
+                    .chars()
+                    .nth(self.pos)
+                    .map(|c| is_white_space_single_line(c))
+                    .unwrap_or(false)
+                {
+                    self.pos += 1;
+                }
+                self.token = syntax_kind::JsDoc::WhitespaceTrivia.into();
+                return syntax_kind::JsDoc::WhitespaceTrivia;
+            }
+            '@' => {
+                self.token = syntax_kind::JsDoc::AtToken.into();
+                return syntax_kind::JsDoc::AtToken;
+            }
+            character_codes::LINE_FEED | character_codes::CARRIAGE_RETURN => {
+                self.token_flags |= TokenFlags::PRECEDING_LINE_BREAK;
+                self.token = SyntaxKind::NewLineTrivia;
+                return syntax_kind::JsDoc::NewLineTrivia;
+            }
+            '*' => {
+                self.token = syntax_kind::JsDoc::AsteriskToken.into();
+                return syntax_kind::JsDoc::AsteriskToken;
+            }
+            '{' => {
+                self.token = syntax_kind::JsDoc::OpenBraceToken.into();
+                return syntax_kind::JsDoc::OpenBraceToken;
+            }
+            '}' => {
+                self.token = syntax_kind::JsDoc::CloseBraceToken.into();
+                return syntax_kind::JsDoc::CloseBraceToken;
+            }
+            '[' => {
+                self.token = syntax_kind::JsDoc::OpenBracketToken.into();
+                return syntax_kind::JsDoc::OpenBracketToken;
+            }
+            ']' => {
+                self.token = syntax_kind::JsDoc::CloseBracketToken.into();
+                return syntax_kind::JsDoc::CloseBracketToken;
+            }
+            '<' => {
+                self.token = syntax_kind::JsDoc::LessThanToken.into();
+                return syntax_kind::JsDoc::LessThanToken;
+            }
+            '=' => {
+                self.token = syntax_kind::JsDoc::EqualsToken.into();
+                return syntax_kind::JsDoc::EqualsToken;
+            }
+            ',' => {
+                self.token = syntax_kind::JsDoc::CommaToken.into();
+                return syntax_kind::JsDoc::CommaToken;
+            }
+            '.' => {
+                self.token = syntax_kind::JsDoc::DotToken.into();
+                return syntax_kind::JsDoc::DotToken;
+            }
+            '`' => {
+                while self.pos < self.end && self.text.chars().nth(self.pos) != Some('`') {
+                    self.pos += 1;
+                }
+                self.token_value = Some(self.text[self.token_pos + 1..self.pos].to_string());
+                self.pos += 1;
+                self.token = SyntaxKind::NoSubstitutionTemplateLiteral;
+                return syntax_kind::JsDoc::NoSubstitutionTemplateLiteral;
+            }
+            _ => {}
+        }
+
+        if is_identifier_start(ch, ScriptTarget::latest()) {
+            while self
+                .text
+                .chars()
+                .nth(self.pos)
+                .map(|c| is_identifier_part(c, ScriptTarget::latest()))
+                .unwrap_or(false)
+            {
+                self.pos += 1;
+            }
+            self.token_value = Some(self.text[self.token_pos..self.pos].to_string());
+            let identifier = self.get_identifier_token();
+            self.token = identifier.into();
+            return identifier.into();
+        } else {
+            self.token = SyntaxKind::Unknown;
+            return syntax_kind::JsDoc::Unknown;
+        }
+    }
+
+    fn get_identifier_token(&mut self) -> syntax_kind::Identifier {
+        // Reserved words are between 2 and 11 characters long and start with a lowercase letter
+        let len = self.token_value.unwrap().len();
+        if let Ok(keyword) = self.token_value.unwrap().parse() {
+            let identifier = syntax_kind::Identifier::from_keyword(keyword);
+            self.token = identifier.into();
+            return identifier;
+        }
+        self.token = syntax_kind::Identifier::identifier().into();
+        return syntax_kind::Identifier::identifier();
     }
 
     pub fn scan(&mut self) -> SyntaxKind {

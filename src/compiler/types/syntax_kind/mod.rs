@@ -280,3 +280,37 @@ impl SyntaxKind {
         }
     }
 }
+
+#[derive(Copy, Clone, Hash, Debug, Eq, PartialEq)]
+pub enum Identifier {
+    Keyword(Keyword),
+    Identifier,
+}
+
+impl Identifier {
+    pub fn from_keyword(keyword: Keyword) -> Identifier {
+        Identifier::Keyword(keyword)
+    }
+
+    pub fn identifier() -> Identifier {
+        Identifier::Identifier
+    }
+}
+
+impl From<Identifier> for SyntaxKind {
+    fn from(i: Identifier) -> SyntaxKind {
+        match i {
+            Identifier::Keyword(keyword) => SyntaxKind::Keyword(keyword),
+            Identifier::Identifier => SyntaxKind::Identifier,
+        }
+    }
+}
+
+impl From<Identifier> for JsDoc {
+    fn from(i: Identifier) -> JsDoc {
+        match i {
+            Identifier::Keyword(keyword) => JsDoc::Keyword(keyword),
+            Identifier::Identifier => JsDoc::Identifier,
+        }
+    }
+}
