@@ -1101,7 +1101,51 @@ impl Scanner {
         }
 
         let identifier_start = self.pos;
-        unimplemented!();
+        let length = self.scan_identifier_parts();
+    }
+
+    /// Current character is known to be a backslash. Check for Unicode escape of the form '\uXXXX'
+    /// and return code point value if valid Unicode escape is found. Otherwise return -1.
+    fn peek_unicode_escape(&mut self) -> Option<char> {
+        assert!(self.text.chars().nth(self.pos) == Some('\\'));
+        if self.pos + 5 < self.end && self.text.chars().nth(self.pos + 1) == Some('u') {
+            let start = self.pos;
+            self.pos += 2;
+            let value = self.scan_exact_number_of_hex_digits(4, false);
+            self.pos = start;
+            value.and_then(std::char::from_u32)
+        } else {
+            None
+        }
+    }
+
+    fn scan_identifier_parts(&mut self) -> String {
+        let mut result = String::new();
+        let mut start = self.pos;
+        while self.pos < self.end {
+            let ch = self.text.chars().nth(self.pos);
+            if ch
+                .map(|ch| is_identifier_part(ch, self.language_version))
+                .unwrap_or(false)
+            {
+                self.pos += 1;
+            } else if ch == Some('\\') {
+                if let Some(c) = self.peek_unicode_escape() {
+                    if is_identifier_part(c, self.language_version) {
+                        result += &self.text[start..self.pos];
+                        result.push(c);
+                        self.pos += 6;
+                        start = self.pos;
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+        result += &self.text[start..self.pos];
+        result
     }
 
     fn scan_octal_digits(&mut self) -> usize {
