@@ -1258,7 +1258,13 @@ impl Scanner {
         }
 
         let identifier_start = self.pos;
-        let length = self.scan_identifier_parts();
+        let length = self.scan_identifier_parts().len();
+
+        if length == 1 && self.text.chars().nth(identifier_start) == 'n' {
+            if is_scientific {
+                self.error(diagnostic::Message::ABigIntLiteralMustBeAnInteger, Some())
+            }
+        }
     }
 
     /// Current character is known to be a backslash. Check for Unicode escape of the form '\uXXXX'

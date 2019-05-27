@@ -203,7 +203,7 @@ impl FromStr for Keyword {
             EXPORT => Ok(Export),
             EXTENDS => Ok(Extends),
             FALSE => Ok(False),
-            FINALLIY => Ok(Finally),
+            FINALLY => Ok(Finally),
             FOR => Ok(For),
             FROM => Ok(From),
             FUNCTION => Ok(Function),
