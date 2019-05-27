@@ -899,7 +899,53 @@ impl Scanner {
         scan_as_many_as_possible: bool,
         can_have_separator: bool,
     ) -> String {
-        unimplemented!();
+        let mut value_chars = Vec::new();
+        let mut allow_separator = false;
+        let mut is_previous_token_separator = false;
+        while value_chars.len() < min_count || scan_as_many_as_possible {
+            let mut ch = self.text.chars().nth(self.pos);
+            if can_have_separator && ch == Some('_') {
+                self.token_flags |= TokenFlags::CONTAINS_SEPARATOR;
+                if allow_separator {
+                    allow_separator = false;
+                    is_previous_token_separator = true;
+                } else if is_previous_token_separator {
+                    self.error(
+                        diagnostic::Message::MultipleConsecutiveNumericSeparatorsNotPermitted,
+                        None,
+                        None,
+                    );
+                } else {
+                    self.error(
+                        diagnostic::Message::NumericSeparatorsAreNotAllowedHere,
+                        None,
+                        None,
+                    );
+                }
+                self.pos += 1;
+                continue;
+            }
+            allow_separator = can_have_separator;
+            if ch.map(|c| c >= 'A' && c <= 'F').unwrap_or(false) {
+                ch = ch.map(|c| c.to_ascii_lowercase());
+            } else if !ch.map(|c| c.is_digit(16)).unwrap_or(false) {
+                break;
+            }
+            value_chars.push(ch.unwrap());
+            self.pos += 1;
+            is_previous_token_separator = false;
+        }
+        if value_chars.len() < min_count {
+            value_chars = Vec::new();
+        }
+        if self.text.chars().nth(self.pos - 1) == Some('_') {
+            self.error(
+                diagnostic::Message::NumericSeparatorsAreNotAllowedHere,
+                Some(self.pos - 1),
+                Some(1),
+            );
+        }
+        value_chars.iter().collect()
     }
 
     fn scan_number_fragment(&mut self) -> String {
