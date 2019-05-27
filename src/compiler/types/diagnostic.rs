@@ -70,6 +70,9 @@ pub enum Message {
     NumericSeparatorsAreNotAllowedHere,
     MultipleConsecutiveNumericSeparatorsNotPermitted,
     MergeConflictMarkerEncountered,
+    HexadecimalDigitExpected,
+    AnExtendedUnicodeEscapeValueMustBeBetween,
+    UnterminatedUnicodeEscapeSequence,
 }
 
 impl Message {

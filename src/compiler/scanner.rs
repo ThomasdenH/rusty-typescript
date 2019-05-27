@@ -528,7 +528,7 @@ impl Scanner {
             if ch == Some('\\') && !jsx_attribute_string {
                 result += &self.text[start..self.pos];
                 if let Some(c) = self.scan_escape_sequence() {
-                    result.push(c);
+                    result.push_str(&c);
                 }
                 start = self.pos;
                 continue;
@@ -684,7 +684,7 @@ impl Scanner {
             if curr_char == Some('\\') {
                 contents += &self.text[start..self.pos];
                 if let Some(c) = self.scan_escape_sequence() {
-                    contents.push(c);
+                    contents.push_str(&c);
                 }
                 start = self.pos;
                 continue;
@@ -762,29 +762,29 @@ impl Scanner {
         self.token_flags = TokenFlags::NONE;
     }
 
-    fn scan_escape_sequence(&mut self) -> Option<char> {
+    fn scan_escape_sequence(&mut self) -> Option<String> {
         self.pos += 1;
         let ch = self.text.chars().nth(self.pos);
         if let Some(c) = ch {
             self.pos += 1;
             match c {
-                '0' => Some('\0'),
-                'b' => Some(character_codes::BACKSPACE),
-                't' => Some('\t'),
-                'n' => Some('\n'),
-                'v' => Some(character_codes::VERTICAL_TAB),
-                'f' => Some(character_codes::FORM_FEED),
-                'r' => Some('\r'),
+                '0' => Some('\0'.to_string()),
+                'b' => Some(character_codes::BACKSPACE.to_string()),
+                't' => Some('\t'.to_string()),
+                'n' => Some('\n'.to_string()),
+                'v' => Some(character_codes::VERTICAL_TAB.to_string()),
+                'f' => Some(character_codes::FORM_FEED.to_string()),
+                'r' => Some('\r'.to_string()),
                 'u' => {
                     if self.text.chars().nth(self.pos) == Some('{') {
                         self.token_flags |= TokenFlags::EXTENDED_UNICODE_ESCAPE;
                         self.pos += 1;
                         self.scan_extended_unicode_escape()
                     } else {
-                        self.scan_hexadecimal_escape(4)
+                        self.scan_hexadecimal_escape(4).map(|c| c.to_string())
                     }
                 }
-                'x' => self.scan_hexadecimal_escape(2),
+                'x' => self.scan_hexadecimal_escape(2).map(|c| c.to_string()),
                 character_codes::CARRIAGE_RETURN => {
                     if self.text.chars().nth(self.pos) == Some(character_codes::LINE_FEED) {
                         self.pos += 1;
@@ -794,7 +794,7 @@ impl Scanner {
                 character_codes::LINE_FEED
                 | character_codes::LINE_SEPARATOR
                 | character_codes::PARAGRAPH_SEPARATOR => None,
-                other => Some(other),
+                other => Some(other.to_string()),
             }
         } else {
             self.error(diagnostic::Message::UnexpectedEndOfText, None, None);
@@ -807,8 +807,79 @@ impl Scanner {
             .and_then(std::char::from_u32)
     }
 
-    fn scan_extended_unicode_escape(&mut self) -> Option<char> {
-        unimplemented!();
+    fn scan_extended_unicode_escape(&mut self) -> Option<String> {
+        let escaped_value_string = self.scan_minimum_number_of_hex_digits(1, false);
+        let escaped_value = u32::from_str_radix(&escaped_value_string, 16);
+        let mut is_invalid_extended_escape = false;
+
+        // Validate the value of the digit
+        match escaped_value {
+            Err(_) => {
+                self.error(diagnostic::Message::HexadecimalDigitExpected, None, None);
+                return None;
+            }
+            Ok(escaped_value) => {
+                if escaped_value > 0x10FFF {
+                    self.error(
+                        diagnostic::Message::AnExtendedUnicodeEscapeValueMustBeBetween,
+                        None,
+                        None,
+                    );
+                    is_invalid_extended_escape = true;
+                }
+
+                let ch = self.text.chars().nth(self.pos);
+
+                if let Some(ch) = ch {
+                    if ch == '}' {
+                        // Only swallow the following character up if it's a '}'.
+                        self.pos += 1;
+                    } else {
+                        self.error(
+                            diagnostic::Message::UnterminatedUnicodeEscapeSequence,
+                            None,
+                            None,
+                        );
+                        is_invalid_extended_escape = true;
+                    }
+                } else {
+                    self.error(diagnostic::Message::UnexpectedEndOfText, None, None);
+                    is_invalid_extended_escape = true;
+                }
+
+                if is_invalid_extended_escape {
+                    return None;
+                }
+
+                Some(Self::utf16_encode_as_string(escaped_value))
+            }
+        }
+    }
+
+    // Derived from the 10.1.1 UTF16Encoding of the ES6 Spec.
+    fn utf16_encode_as_string(code_point: u32) -> String {
+        assert!(code_point <= 0x10FFFF);
+
+        if code_point <= 65535 {
+            return std::char::from_u32(code_point).unwrap().to_string();
+        }
+
+        let code_unit_1 = ((code_point - 65536) / 1024) + 0xD800;
+        let code_unit_2 = ((code_point - 65536) % 1024) + 0xD800;
+
+        let mut s = std::char::from_u32(code_unit_1).unwrap().to_string();
+        s.push(std::char::from_u32(code_unit_2).unwrap());
+        s
+    }
+
+    /// Scans as many hexadecimal digits as are available in the text,
+    /// returning "" if the given number of digits was unavailable.
+    fn scan_minimum_number_of_hex_digits(
+        &mut self,
+        count: usize,
+        can_have_separator: bool,
+    ) -> String {
+        self.scan_hex_digits(count, true, can_have_separator)
     }
 
     /// Scans as many hexadecimal digits as are available in the text,
