@@ -13,7 +13,24 @@ lazy_static! {
     static ref SHEBANG_TRIVIA_REGEX: Regex = Regex::new("^#!.*").unwrap();
 }
 
-const MERGE_CONFLICT_MARKER_LENGTH: usize = "<<<<<<<".len();
+lazy_static! {
+    static ref MERGE_CONFLICT_MARKER_LENGTH: usize = "<<<<<<<".len();
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
+enum BinaryOrOctal {
+    Binary,
+    Octal,
+}
+
+impl BinaryOrOctal {
+    fn base(self) -> u32 {
+        match self {
+            BinaryOrOctal::Binary => 2,
+            BinaryOrOctal::Octal => 8,
+        }
+    }
+}
 
 fn is_identifier_start(c: char, language_version: ScriptTarget) -> bool {
     c.is_ascii_alphabetic()
@@ -455,12 +472,12 @@ impl Scanner {
         {
             let ch = self.text.chars().nth(self.pos);
 
-            if (self.pos + MERGE_CONFLICT_MARKER_LENGTH) < self.text.len() {
+            if (self.pos + *MERGE_CONFLICT_MARKER_LENGTH) < self.text.len() {
                 if self
                     .text
                     .chars()
                     .skip(self.pos)
-                    .take(MERGE_CONFLICT_MARKER_LENGTH)
+                    .take(*MERGE_CONFLICT_MARKER_LENGTH)
                     .any(|c| c != ch.unwrap())
                 {
                     return false;
@@ -471,7 +488,7 @@ impl Scanner {
                 || self
                     .text
                     .chars()
-                    .nth(self.pos + MERGE_CONFLICT_MARKER_LENGTH)
+                    .nth(self.pos + *MERGE_CONFLICT_MARKER_LENGTH)
                     == Some('=');
         }
         false
@@ -481,11 +498,10 @@ impl Scanner {
         self.error(
             diagnostic::Message::MergeConflictMarkerEncountered,
             Some(self.pos),
-            Some(MERGE_CONFLICT_MARKER_LENGTH),
+            Some(*MERGE_CONFLICT_MARKER_LENGTH),
         );
 
         let ch = self.text.chars().nth(self.pos);
-        let len = self.text.len();
 
         if ch == Some('<') || ch == Some('>') {
             while self
@@ -616,7 +632,7 @@ impl Scanner {
     }
 
     fn get_identifier_token(&mut self) -> syntax_kind::Identifier {
-        if let Ok(keyword) = self.token_value.unwrap().parse() {
+        if let Ok(keyword) = self.token_value.as_ref().unwrap().parse() {
             let identifier = syntax_kind::Identifier::from_keyword(keyword);
             self.token = identifier.into();
             return identifier;
@@ -740,7 +756,7 @@ impl Scanner {
                     '&' => {
                         if self.text.chars().nth(self.pos + 1) == Some('&') {
                             self.pos += 2;
-                            self.token == SyntaxKind::Token(Token::AmpersandAmpersand);
+                            self.token = SyntaxKind::Token(Token::AmpersandAmpersand);
                             return self.token;
                         } else if self.text.chars().nth(self.pos + 1) == Some('=') {
                             self.pos += 2;
@@ -806,34 +822,42 @@ impl Scanner {
                             self.token = SyntaxKind::Token(Token::Plus);
                             return self.token;
                         }
-                    },
+                    }
                     ',' => {
                         self.pos += 1;
                         self.token = SyntaxKind::Token(Token::Comma);
                         return self.token;
-                    },
+                    }
                     '-' => {
-                        if self.chars().nth(self.pos + 1) == Some('-') {
+                        if self.text.chars().nth(self.pos + 1) == Some('-') {
                             self.pos += 2;
                             self.token = SyntaxKind::Token(Token::MinusMinus);
                             return self.token;
-                        } else self.chars().nth(self.pos + 1) == Some('=') {
+                        } else if self.text.chars().nth(self.pos + 1) == Some('=') {
                             self.pos += 2;
                             self.token = SyntaxKind::Token(Token::MinusEquals);
                             return self.token;
                         } else {
                             self.pos += 1;
-                            self.token = SyntaxKind::Token(Token::MinusToken);
+                            self.token = SyntaxKind::Token(Token::Minus);
                             return self.token;
                         }
-                    },
+                    }
                     '.' => {
-                        if self.text.chars().nth(self.pos + 1).map(|c| c.is_digit(10)).unwrap_or(false) {
+                        if self
+                            .text
+                            .chars()
+                            .nth(self.pos + 1)
+                            .map(|c| c.is_digit(10))
+                            .unwrap_or(false)
+                        {
                             let (token, value) = self.scan_number();
                             self.token = token;
                             self.token_value = Some(value);
                             return self.token;
-                        } else if self.text.chars().nth(self.pos + 1) == Some('.') && self.text.chars().nth(self.pos + 2) == Some('.') {
+                        } else if self.text.chars().nth(self.pos + 1) == Some('.')
+                            && self.text.chars().nth(self.pos + 2) == Some('.')
+                        {
                             self.pos += 3;
                             self.token = SyntaxKind::Token(Token::DotDotDot);
                             return self.token;
@@ -842,12 +866,18 @@ impl Scanner {
                             self.token = SyntaxKind::Token(Token::Dot);
                             return self.token;
                         }
-                    },
+                    }
                     '/' => {
                         // Single-line comment
                         if self.text.chars().nth(self.pos + 1) == Some('/') {
                             self.pos += 2;
-                            while self.text.chars().nth(self.pos).map(|c| !is_line_break(c)).unwrap_or(false) {
+                            while self
+                                .text
+                                .chars()
+                                .nth(self.pos)
+                                .map(|c| !is_line_break(c))
+                                .unwrap_or(false)
+                            {
                                 self.pos += 1;
                             }
 
@@ -861,8 +891,9 @@ impl Scanner {
                         if self.text.chars().nth(self.pos + 1) == Some('*') {
                             self.pos += 2;
                             if self.text.chars().nth(self.pos) == Some('*')
-                                && self.text.chars().nth(self.pos + 1) != Some('/') {
-                                    self.token_flags |= TokenFlags::PRECEDING_JSDOC_COMMENT;
+                                && self.text.chars().nth(self.pos + 1) != Some('/')
+                            {
+                                self.token_flags |= TokenFlags::PRECEDING_JSDOC_COMMENT;
                             }
 
                             let mut comment_closed = false;
@@ -872,7 +903,9 @@ impl Scanner {
                                     break;
                                 }
 
-                                if ch == Some('*') && self.text.chars().nth(self.pos + 1) == Some('/') {
+                                if ch == Some('*')
+                                    && self.text.chars().nth(self.pos + 1) == Some('/')
+                                {
                                     self.pos += 2;
                                     comment_closed = true;
                                     break;
@@ -886,11 +919,7 @@ impl Scanner {
                             }
 
                             if !comment_closed {
-                                self.error(
-                                    diagnostic::Message::AsteriskSlashExpected,
-                                    None,
-                                    None
-                                );
+                                self.error(diagnostic::Message::AsteriskSlashExpected, None, None);
                             }
 
                             if self.skip_trivia {
@@ -913,56 +942,114 @@ impl Scanner {
                             self.token = SyntaxKind::Token(Token::Slash);
                             return self.token;
                         }
-                    },
+                    }
                     '0' => {
-                        if self.pos + 2 < self.end && self.text.chars()
-                            .nth(self.pos + 1)
-                            .map(|c| c.to_ascii_lowercase())
-                            == Some('x') {
-                                self.pos += 2;
-                                self.token_value = Some(self.scan_minimum_number_of_hex_digits(1, true));
-                                if self.token_value.unwrap().is_empty() {
-                                    self.error(diagnostic::Message::HexadecimalDigitExpected, None, None);
-                                    self.token_value = Some("0".to_string());
-                                }
-                                self.token_value = self.token_value.map(|v| "0x".to_string() + &v);
-                                self.token_flags |= TokenFlags::HEX_SPECIFIER;
-                                self.token = self.check_big_int_suffix();
-                                return self.token;
-                            } else if self.pos + 2 < self.end && self.text.chars()
+                        if self.pos + 2 < self.end
+                            && self
+                                .text
+                                .chars()
                                 .nth(self.pos + 1)
                                 .map(|c| c.to_ascii_lowercase())
-                                == Some('b') {
-                                    self.pos += 2;
-                                    self.token_value = self.scan_binary_or_octal_digits(2);
-                                    if self.token_value().is_none() || self.token_value().unwrap().is_empty() {
-                                        self.error(
-                                            diagnostic::Message::BinaryDigitExpected,
-                                            None,
-                                            None
-                                        );
-                                        self.token_value = Some("0".to_string());
-                                    } else {
-                                        self.token_value = self.token_value.map(|s| "0b".to_string() + &s);
-                                        self.token_flags |= TokenFlags::BINARY_SPECIFIER;
-                                        self.token = self.check_big_int_suffix();
-                                        return self.token;
-                                    }
-                                }
-                    },
+                                == Some('x')
+                        {
+                            self.pos += 2;
+                            self.token_value =
+                                Some(self.scan_minimum_number_of_hex_digits(1, true));
+                            if self.token_value.as_ref().unwrap().is_empty() {
+                                self.error(
+                                    diagnostic::Message::HexadecimalDigitExpected,
+                                    None,
+                                    None,
+                                );
+                                self.token_value = Some("0".to_string());
+                            }
+                            self.token_value =
+                                self.token_value.as_ref().map(|v| "0x".to_string() + v);
+                            self.token_flags |= TokenFlags::HEX_SPECIFIER;
+                            self.token = self.check_big_int_suffix();
+                            return self.token;
+                        } else if self.pos + 2 < self.end
+                            && self
+                                .text
+                                .chars()
+                                .nth(self.pos + 1)
+                                .map(|c| c.to_ascii_lowercase())
+                                == Some('b')
+                        {
+                            self.pos += 2;
+                            self.token_value =
+                                Some(self.scan_binary_or_octal_digits(BinaryOrOctal::Binary));
+                            if self.token_value().is_none()
+                                || self.token_value().unwrap().is_empty()
+                            {
+                                self.error(diagnostic::Message::BinaryDigitExpected, None, None);
+                                self.token_value = Some("0".to_string());
+                            } else {
+                                self.token_value =
+                                    self.token_value.as_ref().map(|s| "0b".to_string() + s);
+                                self.token_flags |= TokenFlags::BINARY_SPECIFIER;
+                                self.token = self.check_big_int_suffix();
+                                return self.token;
+                            }
+                        } else if self.pos + 2 < self.end
+                            && self
+                                .text
+                                .chars()
+                                .nth(self.pos + 1)
+                                .map(|c| c.to_ascii_lowercase())
+                                == Some('o')
+                        {
+                            self.pos += 2;
+                            self.token_value =
+                                Some(self.scan_binary_or_octal_digits(BinaryOrOctal::Octal));
+                            if self.token_value.is_none() {
+                                self.error(diagnostic::Message::OctalDigitExpected, None, None);
+                                self.token_value = Some("0".to_string());
+                            }
+                            self.token_value =
+                                self.token_value.as_ref().map(|s| "0o".to_string() + s);
+                            self.token_flags |= TokenFlags::OCTAL_SPECIFIER;
+                            self.token = self.check_big_int_suffix();
+                            return self.token;
+                        }
+
+                        // Try to parse as an octal
+                        if self.pos + 1 < self.end
+                            && self
+                                .text
+                                .chars()
+                                .nth(self.pos + 1)
+                                .map(|c| c.is_digit(8))
+                                .unwrap_or(false)
+                        {
+                            self.token_value = Some(self.scan_octal_digits().to_string());
+                            self.token_flags |= TokenFlags::OCTAL_SPECIFIER;
+                            self.token = SyntaxKind::NumericLiteral;
+                            return self.token;
+                        }
+
+                        // Parse as number
+                        let (t, value) = self.scan_number();
+                        self.token = t;
+                        self.token_value = Some(value);
+                        return self.token;
+                    }
                     c if c.is_digit(10) => {
-                        unimplemented!();
-                    },
+                        let (t, value) = self.scan_number();
+                        self.token = t;
+                        self.token_value = Some(value);
+                        return self.token;
+                    }
                     ':' => {
                         self.pos += 1;
                         self.token = SyntaxKind::Token(Token::Colon);
                         return self.token;
-                    },
+                    }
                     ';' => {
                         self.pos += 1;
                         self.token = SyntaxKind::Token(Token::Semicolon);
                         return self.token;
-                    },
+                    }
                     _ => unimplemented!(),
                 }
             } else {
@@ -970,6 +1057,54 @@ impl Scanner {
                 return SyntaxKind::EndOfFileToken;
             }
         }
+    }
+
+    fn scan_binary_or_octal_digits(&mut self, mode: BinaryOrOctal) -> String {
+        let mut value = String::new();
+        // For counting number of digits; Valid binaryIntegerLiteral must have at least one binary digit following B or b.
+        // Similarly valid octalIntegerLiteral must have at least one octal digit following o or O.
+        let mut separator_allowed = false;
+        let mut is_previous_token_separator = false;
+        loop {
+            let ch = self.text.chars().nth(self.pos);
+            // Numeric separators are allowed anywhere within a numeric literal, except not at the beginning, or following another separator
+            if ch == Some('_') {
+                self.token_flags |= TokenFlags::CONTAINS_SEPARATOR;
+                if separator_allowed {
+                    separator_allowed = false;
+                    is_previous_token_separator = true;
+                } else if is_previous_token_separator {
+                    self.error(
+                        diagnostic::Message::MultipleConsecutiveNumericSeparatorsNotPermitted,
+                        Some(self.pos),
+                        Some(1),
+                    );
+                } else {
+                    self.error(
+                        diagnostic::Message::NumericSeparatorsAreNotAllowedHere,
+                        Some(self.pos),
+                        Some(1),
+                    );
+                }
+                self.pos += 1;
+                continue;
+            }
+            separator_allowed = true;
+            if ch.map(|c| !c.is_digit(mode.base())).unwrap_or(false) {
+                break;
+            }
+            value.push(ch.unwrap());
+            self.pos += 1;
+            is_previous_token_separator = false;
+        }
+        if self.text.chars().nth(self.pos - 1) == Some('_') {
+            self.error(
+                diagnostic::Message::MultipleConsecutiveNumericSeparatorsNotPermitted,
+                Some(self.pos),
+                Some(1),
+            );
+        }
+        return value;
     }
 
     pub(crate) fn is_shebang_trivia(&self) -> bool {

@@ -64,6 +64,8 @@ pub enum Message {
         modifier: String,
     },
     DigitExpected,
+    BinaryDigitExpected,
+    OctalDigitExpected,
     UnexpectedEndOfText,
     UnterminatedTemplateLiteral,
     UnterminatedRegularExpressionLiteral,
@@ -127,7 +129,16 @@ impl Message {
             | UnexpectedEndOfText
             | UnterminatedRegularExpressionLiteral
             | NumericSeparatorsAreNotAllowedHere
-            | MultipleConsecutiveNumericSeparatorsNotPermitted => Category::Error,
+            | MultipleConsecutiveNumericSeparatorsNotPermitted
+            | BinaryDigitExpected
+            | OctalDigitExpected
+            | HexadecimalDigitExpected
+            | MergeConflictMarkerEncountered
+            | AnExtendedUnicodeEscapeValueMustBeBetween
+            | UnterminatedUnicodeEscapeSequence
+            | BigIntLiteralCannotUseExponentialNotation
+            | BigIntLiteralMustBeAnInteger
+            | IdentifierOrKeywordCannotImmediatelyFollowANumericLiteral => Category::Error,
         }
     }
 
@@ -174,6 +185,15 @@ impl Message {
             UnterminatedRegularExpressionLiteral => 1161,
             NumericSeparatorsAreNotAllowedHere => 6188,
             MultipleConsecutiveNumericSeparatorsNotPermitted => 6189,
+            BinaryDigitExpected => 1177,
+            OctalDigitExpected => 1178,
+            MergeConflictMarkerEncountered => 1185,
+            HexadecimalDigitExpected => 1125,
+            AnExtendedUnicodeEscapeValueMustBeBetween => 1198,
+            UnterminatedUnicodeEscapeSequence => 1199,
+            BigIntLiteralCannotUseExponentialNotation => 1352,
+            BigIntLiteralMustBeAnInteger => 1353,
+            IdentifierOrKeywordCannotImmediatelyFollowANumericLiteral => 1351,
         }
     }
 }
@@ -303,6 +323,23 @@ impl std::fmt::Display for Message {
             MultipleConsecutiveNumericSeparatorsNotPermitted => write!(
                 f,
                 "Multiple consecutive numeric separators are not permitted."
+            ),
+            BinaryDigitExpected => write!(f, "Binary digit expected."),
+            OctalDigitExpected => write!(f, "Octal digit expected."),
+            MergeConflictMarkerEncountered => write!(f, "Merge conflict marker encountered."),
+            HexadecimalDigitExpected => write!(f, "Hexadecimal digit expected."),
+            AnExtendedUnicodeEscapeValueMustBeBetween => write!(
+                f,
+                "An extended Unicode escape value must be between 0x0 and 0x10FFFF inclusive."
+            ),
+            UnterminatedUnicodeEscapeSequence => write!(f, "Unterminated Unicode escape sequence."),
+            BigIntLiteralCannotUseExponentialNotation => {
+                write!(f, "A bigint literal cannot use exponential notation.")
+            }
+            BigIntLiteralMustBeAnInteger => write!(f, "A bigint literal must be an integer."),
+            IdentifierOrKeywordCannotImmediatelyFollowANumericLiteral => write!(
+                f,
+                "An identifier or keyword cannot immediately follow a numeric literal."
             ),
         }
     }

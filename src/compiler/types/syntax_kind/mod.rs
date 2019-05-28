@@ -261,7 +261,7 @@ impl From<Keyword> for SyntaxKind {
 
 impl SyntaxKind {
     /// Returns true for `Identifier` or a keyword.
-    pub(crate) fn is_identifier_or_keyword(&self) -> bool {
+    pub(crate) fn is_identifier_or_keyword(self) -> bool {
         // Result sometimes differs from ts version
         match self {
             SyntaxKind::Identifier | SyntaxKind::Keyword(_) => true,
@@ -269,8 +269,8 @@ impl SyntaxKind {
         }
     }
 
-    pub(crate) fn is_identifier_or_keyword_or_greater_than(&self) -> bool {
-        self.is_identifier_or_keyword() || *self == SyntaxKind::Token(Token::GreaterThan)
+    pub(crate) fn is_identifier_or_keyword_or_greater_than(self) -> bool {
+        self.is_identifier_or_keyword() || self == SyntaxKind::Token(Token::GreaterThan)
     }
 
     pub(crate) fn is_reserved_word(self) -> bool {
