@@ -1050,6 +1050,45 @@ impl Scanner {
                         self.token = SyntaxKind::Token(Token::Semicolon);
                         return self.token;
                     }
+                    '<' => {
+                        if self.is_conflict_marker_trivia() {
+                            self.scan_conflict_marker_trivia();
+                            if self.skip_trivia {
+                                continue;
+                            } else {
+                                self.token = SyntaxKind::ConflictMarkerTrivia;
+                                return self.token;
+                            }
+                        }
+
+                        let next_char = self.text.chars().nth(self.pos + 1);
+                        if next_char == Some('<') {
+                            if self.text.chars().nth(self.pos + 2) == Some('=') {
+                                self.pos += 3;
+                                self.token = SyntaxKind::Token(Token::LessThanLessThanEquals);
+                                return self.token;
+                            } else {
+                                self.pos += 2;
+                                self.token = SyntaxKind::Token(Token::LessThanLessThan);
+                                return self.token;
+                            }
+                        } else if next_char == Some('=') {
+                            self.pos += 2;
+                            self.token = SyntaxKind::Token(Token::LessThanEquals);
+                            return self.token;
+                        } else if self.language_variant == LanguageVariant::JSX
+                            && next_char == Some('/')
+                            && self.text.chars().nth(self.pos + 2) == Some('*')
+                        {
+                            self.pos += 2;
+                            self.token = SyntaxKind::Token(Token::LessThanSlash);
+                            return self.token;
+                        } else {
+                            self.pos += 1;
+                            self.token = SyntaxKind::Token(Token::LessThan);
+                            return self.token;
+                        }
+                    }
                     _ => unimplemented!(),
                 }
             } else {
