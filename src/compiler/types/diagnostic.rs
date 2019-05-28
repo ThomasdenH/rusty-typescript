@@ -73,6 +73,9 @@ pub enum Message {
     HexadecimalDigitExpected,
     AnExtendedUnicodeEscapeValueMustBeBetween,
     UnterminatedUnicodeEscapeSequence,
+    BigIntLiteralCannotUseExponentialNotation,
+    BigIntLiteralMustBeAnInteger,
+    IdentifierOrKeywordCannotImmediatelyFollowANumericLiteral,
 }
 
 impl Message {
