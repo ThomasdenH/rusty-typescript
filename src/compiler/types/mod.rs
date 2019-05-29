@@ -1,5 +1,8 @@
 use num_derive::{FromPrimitive, ToPrimitive};
 
+#[cfg(test)]
+use proptest_derive::*;
+
 pub mod character_codes;
 // pub mod node;
 pub mod diagnostic;
@@ -30,6 +33,7 @@ pub enum ScriptKind {
     Deferred,
 }
 
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(Eq, PartialEq, Ord, PartialOrd, Debug, Hash, Copy, Clone)]
 pub enum ScriptTarget {
     ES3 = 0,
@@ -53,6 +57,7 @@ impl ScriptTarget {
     }
 }
 
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, FromPrimitive, ToPrimitive)]
 pub enum LanguageVariant {
     Standard,
