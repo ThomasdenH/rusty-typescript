@@ -2243,7 +2243,7 @@ lazy_static! {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::*;
     use proptest::{bool, proptest};
     proptest! {
@@ -2273,7 +2273,7 @@ mod tests {
     }
 
     #[test]
-    fn test_char_boundary() {
+    fn char_boundary() {
         let mut scanner = Scanner::new(
             ScriptTarget::ES3,
             false,
@@ -2286,6 +2286,33 @@ mod tests {
         assert_eq!(scanner.scan(), SyntaxKind::Token(Token::LessThan));
         assert_eq!(scanner.scan(), SyntaxKind::Identifier);
         assert_eq!(scanner.token_value().unwrap(), "A");
+        assert_eq!(scanner.scan(), SyntaxKind::EndOfFileToken);
+    }
+
+    #[test]
+    fn string() {
+        let mut scanner = Scanner::new(
+            ScriptTarget::ES3,
+            false,
+            LanguageVariant::Standard,
+            Some("const i = \"some string\";".to_string()),
+            Some(Box::new(|c, _length| panic!("Unexpected error: {}", c))),
+            None,
+            None,
+        );
+        assert_eq!(
+            scanner.scan(),
+            SyntaxKind::Keyword(syntax_kind::Keyword::Const)
+        );
+        assert_eq!(scanner.scan(), SyntaxKind::WhitespaceTrivia);
+        assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+        assert_eq!(scanner.token_value().unwrap(), "i");
+        assert_eq!(scanner.scan(), SyntaxKind::WhitespaceTrivia);
+        assert_eq!(scanner.scan(), SyntaxKind::Token(Token::Equals));
+        assert_eq!(scanner.scan(), SyntaxKind::WhitespaceTrivia);
+        assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+        assert_eq!(scanner.token_value().unwrap(), "some string");
+        assert_eq!(scanner.scan(), SyntaxKind::Token(Token::Semicolon));
         assert_eq!(scanner.scan(), SyntaxKind::EndOfFileToken);
     }
 }
