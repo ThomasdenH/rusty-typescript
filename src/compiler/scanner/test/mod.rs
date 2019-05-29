@@ -1,5 +1,7 @@
 use super::*;
 use proptest::{bool, proptest};
+use std::rc::Rc;
+use std::sync::Mutex;
 
 proptest! {
     /// Check for panics on random input.
@@ -10,6 +12,7 @@ proptest! {
         language_variant: LanguageVariant,
         text in ".*"
     ) {
+        let text_len = text.len();
         let mut scanner = Scanner::new(
             language_version,
             skip_trivia,
@@ -19,10 +22,11 @@ proptest! {
             None,
             None
         );
-        loop {
+        for i in 0.. {
             if scanner.scan() == SyntaxKind::EndOfFileToken {
                 break;
             }
+            assert!(i < text_len, "expected less iterations than the text is long");
         }
     }
 }
@@ -163,10 +167,7 @@ fn scan_template_and_set_token_value_panic() {
 
 #[test]
 fn scan_string_panic() {
-    use std::rc::Rc;
-    use std::sync::Mutex;
     let errors = Rc::new(Mutex::new(Vec::new()));
-
     let errors_for_add_error = errors.clone();
     let add_error = Box::new(move |err, pos| errors_for_add_error.lock().unwrap().push((err, pos)));
 
@@ -197,18 +198,42 @@ fn scan_string_panic() {
 
 #[test]
 fn scan_number() {
+    let errors = Rc::new(Mutex::new(Vec::new()));
+    let errors_for_add_error = errors.clone();
+    let add_error = Box::new(move |err, pos| errors_for_add_error.lock().unwrap().push((err, pos)));
     let mut scanner = Scanner::new(
         ScriptTarget::ES3,
         false,
         LanguageVariant::Standard,
         Some("0.".to_string()),
-        None,
+        Some(add_error),
         None,
         None,
     );
-    loop {
-        if scanner.scan() == SyntaxKind::EndOfFileToken {
-            break;
-        }
-    }
+    assert_eq!(scanner.scan(), SyntaxKind::NumericLiteral);
+    assert_eq!(scanner.scan(), SyntaxKind::EndOfFileToken);
+    assert_eq!(&*errors.lock().unwrap(), &[]);
+}
+
+#[test]
+fn proptest_panic() {
+    let errors = Rc::new(Mutex::new(Vec::new()));
+    let errors_for_add_error = errors.clone();
+    let add_error = Box::new(move |err, pos| errors_for_add_error.lock().unwrap().push((err, pos)));
+    let mut scanner = Scanner::new(
+        ScriptTarget::ES3,
+        false,
+        LanguageVariant::Standard,
+        Some("0b:".to_string()),
+        Some(add_error),
+        None,
+        None,
+    );
+    assert_eq!(scanner.scan(), SyntaxKind::NumericLiteral);
+    assert_eq!(scanner.scan(), SyntaxKind::Token(Token::Colon));
+    assert_eq!(scanner.scan(), SyntaxKind::EndOfFileToken);
+    assert_eq!(
+        &*errors.lock().unwrap(),
+        &[(diagnostic::Message::BinaryDigitExpected, 0)]
+    );
 }

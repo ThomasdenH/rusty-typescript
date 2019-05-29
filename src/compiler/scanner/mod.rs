@@ -569,7 +569,7 @@ impl Scanner {
                 return syntax_kind::JsDoc::AtToken;
             }
             character_codes::LINE_FEED | character_codes::CARRIAGE_RETURN => {
-                self.token_flags |= TokenFlags::PRECEDING_LINE_BREAK;
+                self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
                 self.token = SyntaxKind::NewLineTrivia;
                 return syntax_kind::JsDoc::NewLineTrivia;
             }
@@ -690,7 +690,7 @@ impl Scanner {
                 use character_codes::*;
                 match ch {
                     LINE_FEED | CARRIAGE_RETURN => {
-                        self.token_flags |= TokenFlags::PRECEDING_LINE_BREAK;
+                        self.token_flags.insert(TokenFlags::PRECEDING_LINE_BREAK);
                         if self.skip_trivia {
                             self.pos += 1;
                             continue;
@@ -1834,7 +1834,7 @@ impl Scanner {
         loop {
             let ch = self.text.chars().nth(self.pos);
             if ch == Some('_') {
-                self.token_flags |= TokenFlags::CONTAINS_SEPARATOR;
+                self.token_flags.insert(TokenFlags::CONTAINS_SEPARATOR);
                 if allow_separator {
                     allow_separator = false;
                     is_previous_token_separator = true;
@@ -1860,8 +1860,7 @@ impl Scanner {
                 self.pos += 1;
                 start = self.pos;
                 continue;
-            }
-            if ch.map(|ch| ch.is_digit(10)).unwrap_or(false) {
+            } else if ch.map(|ch| ch.is_digit(10)).unwrap_or(false) {
                 allow_separator = true;
                 is_previous_token_separator = false;
                 self.pos += 1;
@@ -1869,7 +1868,7 @@ impl Scanner {
             }
             break;
         }
-        if Some('_') == self.text.chars().nth(self.pos - 1) {
+        if self.pos >= 1 && Some('_') == self.text.chars().nth(self.pos - 1) {
             self.error(
                 diagnostic::Message::NumericSeparatorsAreNotAllowedHere,
                 Some(self.pos - 1),
@@ -1911,7 +1910,12 @@ impl Scanner {
                 self.error(diagnostic::Message::DigitExpected, None, None)
             } else {
                 scientific_fragment = Some(
-                    self.text.get(end..pre_numeric_part).unwrap().to_string() + &final_fragment,
+                    self.text
+                        .chars()
+                        .skip(end)
+                        .take(pre_numeric_part - end)
+                        .collect::<String>()
+                        + &final_fragment,
                 );
                 end = self.pos;
             }
@@ -1936,7 +1940,7 @@ impl Scanner {
             self.check_for_identifier_start_after_numeric_literal(start, is_scientific);
             (
                 SyntaxKind::NumericLiteral,
-                result.parse::<isize>().unwrap().to_string(),
+                result.parse::<f64>().unwrap().to_string(),
             )
         } else {
             self.token_value = Some(result);
@@ -1971,8 +1975,8 @@ impl Scanner {
                 } else {
                     usize::from_str(self.token_value.as_ref().unwrap())
                 }
-                .unwrap()
-                .to_string(),
+                .map(|d| d.to_string())
+                .unwrap_or("".to_string()),
             );
             SyntaxKind::NumericLiteral
         }

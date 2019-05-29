@@ -7,3 +7,5 @@
 cc 65b4d2149c00647743430d4950c024de33f2cd9ce9141c994ab4f02a1cc4371d # shrinks to language_version = ES3, skip_trivia = false, language_variant = Standard, text = "¡𐀀𐀀𐀀 ¡A¡\u{0}¡¡A\""
 cc 2608201c2daae5afcf0daf31f89b853e4cba8aad87c89b195b777ae0b293f3ef # shrinks to language_version = ES3, skip_trivia = false, language_variant = Standard, text = "¡¡\'\'"
 cc ab3862f418ace09b40f5eb9e397616589bf5758d92b75d0c525e7a2c64b8865c # shrinks to language_version = ES3, skip_trivia = false, language_variant = Standard, text = "0."
+cc 44646b1e01276d59af554aae5db78d2c46584066beefa64b27f3c2649dacc386 # shrinks to language_version = ES3, skip_trivia = false, language_variant = Standard, text = ".0"
+cc 7f8f63fc4524c68c409945edb61b276adb26959f637553f253573c9fd45e9dc3 # shrinks to language_version = ES3, skip_trivia = false, language_variant = Standard, text = "0b:"
