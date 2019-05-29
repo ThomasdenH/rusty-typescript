@@ -78,6 +78,7 @@ pub enum Message {
     BigIntLiteralCannotUseExponentialNotation,
     BigIntLiteralMustBeAnInteger,
     IdentifierOrKeywordCannotImmediatelyFollowANumericLiteral,
+    InvalidCharacter,
 }
 
 impl Message {
@@ -138,7 +139,8 @@ impl Message {
             | UnterminatedUnicodeEscapeSequence
             | BigIntLiteralCannotUseExponentialNotation
             | BigIntLiteralMustBeAnInteger
-            | IdentifierOrKeywordCannotImmediatelyFollowANumericLiteral => Category::Error,
+            | IdentifierOrKeywordCannotImmediatelyFollowANumericLiteral
+            | InvalidCharacter => Category::Error,
         }
     }
 
@@ -194,6 +196,7 @@ impl Message {
             BigIntLiteralCannotUseExponentialNotation => 1352,
             BigIntLiteralMustBeAnInteger => 1353,
             IdentifierOrKeywordCannotImmediatelyFollowANumericLiteral => 1351,
+            InvalidCharacter => 1127,
         }
     }
 }
@@ -341,6 +344,7 @@ impl std::fmt::Display for Message {
                 f,
                 "An identifier or keyword cannot immediately follow a numeric literal."
             ),
+            InvalidCharacter => write!(f, "Invalid character."),
         }
     }
 }
