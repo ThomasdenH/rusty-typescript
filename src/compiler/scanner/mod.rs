@@ -131,8 +131,8 @@ pub fn could_start_trivia(text: &str, pos: usize) -> bool {
         .unwrap_or(false)
 }
 
-pub struct Scanner {
-    text: String,
+pub struct Scanner<'a> {
+    text: &'a str,
     /// Current position (end position of text of current token)
     pos: usize,
     /// end of text
@@ -153,17 +153,17 @@ pub struct Scanner {
 
 pub type ErrorCallback = (Fn(diagnostic::Message, usize));
 
-impl Scanner {
+impl<'a> Scanner<'a> {
     pub fn new(
         language_version: ScriptTarget,
         skip_trivia: bool,
         language_variant: LanguageVariant,
-        text_initial: Option<String>,
+        text_initial: Option<&str>,
         on_error: Option<Box<ErrorCallback>>,
         start: Option<usize>,
         length: Option<usize>,
     ) -> Scanner {
-        let text = text_initial.unwrap_or_else(|| "".to_string());
+        let text = text_initial.unwrap_or("");
         let start = start.unwrap_or(0);
         let end = length.map(|l| l + start).unwrap_or_else(|| text.len());
 
@@ -1617,7 +1617,7 @@ impl Scanner {
         let save_token_value = self.token_value.clone();
         let save_token_flags = self.token_flags;
 
-        self.set_text(self.text.clone(), Some(start), Some(length));
+        self.set_text(self.text, Some(start), Some(length));
         let result = callback();
 
         self.end = save_end;
@@ -1637,7 +1637,7 @@ impl Scanner {
 
     /// Sets the text for the scanner to scan. An optional subrange starting point and length
     /// can be provided to have the scanner only scan a portion of the text.
-    pub fn set_text(&mut self, text: String, start: Option<usize>, length: Option<usize>) {
+    pub fn set_text(&mut self, text: &'a str, start: Option<usize>, length: Option<usize>) {
         self.text = text;
         self.end = length.unwrap_or_else(|| self.text.len() + start.unwrap_or(0));
         self.set_text_pos(start.unwrap_or(0))

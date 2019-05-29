@@ -17,7 +17,7 @@ proptest! {
             language_version,
             skip_trivia,
             language_variant,
-            Some(text),
+            Some(&text),
             None,
             None,
             None
@@ -37,7 +37,7 @@ fn char_boundary() {
         ScriptTarget::ES3,
         false,
         LanguageVariant::Standard,
-        Some("<A".to_string()),
+        Some("<A"),
         None,
         None,
         None,
@@ -54,7 +54,7 @@ fn string() {
         ScriptTarget::ES3,
         false,
         LanguageVariant::Standard,
-        Some("const i = \"some string\";".to_string()),
+        Some("const i = \"some string\";"),
         Some(Box::new(|c, _length| panic!("Unexpected error: {}", c))),
         None,
         None,
@@ -81,7 +81,7 @@ fn string_with_escape() {
         ScriptTarget::ES3,
         false,
         LanguageVariant::Standard,
-        Some("let i = \"\\u{0}\";".to_string()),
+        Some("let i = \"\\u{0}\";"),
         Some(Box::new(|c, _length| panic!("Unexpected error: {}", c))),
         None,
         None,
@@ -109,7 +109,7 @@ fn scan_number_fragment_panic() {
         ScriptTarget::ES3,
         false,
         LanguageVariant::Standard,
-        Some(r#"¡¡��¡¡A\u{0}\u{0}0A"#.to_string()),
+        Some(r#"¡¡��¡¡A\u{0}\u{0}0A"#),
         None,
         None,
         None,
@@ -127,7 +127,7 @@ fn scan_identifier_parts_panic() {
         ScriptTarget::ES3,
         false,
         LanguageVariant::Standard,
-        Some(r#"¡��� ¡A¡\u{0}¡¡A\""#.to_string()),
+        Some(r#"¡��� ¡A¡\u{0}¡¡A\""#),
         None,
         None,
         None,
@@ -152,7 +152,7 @@ fn scan_template_and_set_token_value_panic() {
         ScriptTarget::ES3,
         false,
         LanguageVariant::Standard,
-        Some(r#"`¡\\"#.to_string()),
+        Some(r#"`¡\\"#),
         Some(add_error),
         None,
         None,
@@ -175,7 +175,7 @@ fn scan_string_panic() {
         ScriptTarget::ES3,
         false,
         LanguageVariant::Standard,
-        Some(r#"¡¡\'\'"#.to_string()),
+        Some(r#"¡¡\'\'"#),
         Some(add_error),
         None,
         None,
@@ -205,14 +205,20 @@ fn scan_number() {
         ScriptTarget::ES3,
         false,
         LanguageVariant::Standard,
-        Some("0.".to_string()),
+        Some("0."),
         Some(add_error),
         None,
         None,
     );
     assert_eq!(scanner.scan(), SyntaxKind::NumericLiteral);
     assert_eq!(scanner.scan(), SyntaxKind::EndOfFileToken);
-    assert_eq!(&*errors.lock().unwrap(), &[]);
+    assert_eq!(
+        &*errors.lock().unwrap(),
+        &[(
+            diagnostic::Message::IdentifierOrKeywordCannotImmediatelyFollowANumericLiteral,
+            0
+        )]
+    );
 }
 
 #[test]
@@ -224,7 +230,7 @@ fn proptest_panic() {
         ScriptTarget::ES3,
         false,
         LanguageVariant::Standard,
-        Some("0b:".to_string()),
+        Some("0b:"),
         Some(add_error),
         None,
         None,
