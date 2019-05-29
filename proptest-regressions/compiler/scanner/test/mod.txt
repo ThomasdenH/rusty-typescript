@@ -6,3 +6,4 @@
 # everyone who runs the test benefits from these saved cases.
 cc 65b4d2149c00647743430d4950c024de33f2cd9ce9141c994ab4f02a1cc4371d # shrinks to language_version = ES3, skip_trivia = false, language_variant = Standard, text = "¡𐀀𐀀𐀀 ¡A¡\u{0}¡¡A\""
 cc 2608201c2daae5afcf0daf31f89b853e4cba8aad87c89b195b777ae0b293f3ef # shrinks to language_version = ES3, skip_trivia = false, language_variant = Standard, text = "¡¡\'\'"
+cc ab3862f418ace09b40f5eb9e397616589bf5758d92b75d0c525e7a2c64b8865c # shrinks to language_version = ES3, skip_trivia = false, language_variant = Standard, text = "0."

@@ -194,3 +194,21 @@ fn scan_string_panic() {
         ]
     );
 }
+
+#[test]
+fn scan_number() {
+    let mut scanner = Scanner::new(
+        ScriptTarget::ES3,
+        false,
+        LanguageVariant::Standard,
+        Some("0.".to_string()),
+        None,
+        None,
+        None,
+    );
+    loop {
+        if scanner.scan() == SyntaxKind::EndOfFileToken {
+            break;
+        }
+    }
+}
