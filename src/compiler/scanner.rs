@@ -10,7 +10,8 @@ use std::convert::TryFrom;
 use std::str::FromStr;
 
 lazy_static! {
-    static ref SHEBANG_TRIVIA_REGEX: Regex = Regex::new("^#!.*").unwrap();
+    static ref SHEBANG_TRIVIA_REGEX: Regex =
+        Regex::new("^#!.*").expect("Cannot compile shebang regex");
 }
 
 lazy_static! {
@@ -650,7 +651,12 @@ impl Scanner {
     }
 
     fn get_identifier_token(&mut self) -> syntax_kind::Identifier {
-        if let Ok(keyword) = self.token_value.as_ref().unwrap().parse() {
+        if let Ok(keyword) = self
+            .token_value
+            .as_ref()
+            .expect("expected token value in get_identifier_token")
+            .parse()
+        {
             let identifier = syntax_kind::Identifier::from_keyword(keyword);
             self.token = identifier.into();
             return identifier;
@@ -1362,7 +1368,7 @@ impl Scanner {
             if ch == Some('\\') && !jsx_attribute_string {
                 result += &self.text[start..self.pos];
                 if let Some(c) = self.scan_escape_sequence() {
-                    result.push_str(&c);
+                    result.push(c);
                 }
                 start = self.pos;
                 continue;
@@ -1524,7 +1530,7 @@ impl Scanner {
             if curr_char == Some('\\') {
                 contents += &self.text[start..self.pos];
                 if let Some(c) = self.scan_escape_sequence() {
-                    contents.push_str(&c);
+                    contents.push(c);
                 }
                 start = self.pos;
                 continue;
@@ -1602,29 +1608,29 @@ impl Scanner {
         self.token_flags = TokenFlags::NONE;
     }
 
-    fn scan_escape_sequence(&mut self) -> Option<String> {
+    fn scan_escape_sequence(&mut self) -> Option<char> {
         self.pos += 1;
         let ch = self.text.chars().nth(self.pos);
         if let Some(c) = ch {
             self.pos += 1;
             match c {
-                '0' => Some('\0'.to_string()),
-                'b' => Some(character_codes::BACKSPACE.to_string()),
-                't' => Some('\t'.to_string()),
-                'n' => Some('\n'.to_string()),
-                'v' => Some(character_codes::VERTICAL_TAB.to_string()),
-                'f' => Some(character_codes::FORM_FEED.to_string()),
-                'r' => Some('\r'.to_string()),
+                '0' => Some('\0'),
+                'b' => Some(character_codes::BACKSPACE),
+                't' => Some('\t'),
+                'n' => Some('\n'),
+                'v' => Some(character_codes::VERTICAL_TAB),
+                'f' => Some(character_codes::FORM_FEED),
+                'r' => Some('\r'),
                 'u' => {
                     if self.text.chars().nth(self.pos) == Some('{') {
                         self.token_flags |= TokenFlags::EXTENDED_UNICODE_ESCAPE;
                         self.pos += 1;
                         self.scan_extended_unicode_escape()
                     } else {
-                        self.scan_hexadecimal_escape(4).map(|c| c.to_string())
+                        self.scan_hexadecimal_escape(4)
                     }
                 }
-                'x' => self.scan_hexadecimal_escape(2).map(|c| c.to_string()),
+                'x' => self.scan_hexadecimal_escape(2),
                 character_codes::CARRIAGE_RETURN => {
                     if self.text.chars().nth(self.pos) == Some(character_codes::LINE_FEED) {
                         self.pos += 1;
@@ -1634,7 +1640,7 @@ impl Scanner {
                 character_codes::LINE_FEED
                 | character_codes::LINE_SEPARATOR
                 | character_codes::PARAGRAPH_SEPARATOR => None,
-                other => Some(other.to_string()),
+                other => Some(other),
             }
         } else {
             self.error(diagnostic::Message::UnexpectedEndOfText, None, None);
@@ -1647,7 +1653,7 @@ impl Scanner {
             .and_then(std::char::from_u32)
     }
 
-    fn scan_extended_unicode_escape(&mut self) -> Option<String> {
+    fn scan_extended_unicode_escape(&mut self) -> Option<char> {
         let escaped_value_string = self.scan_minimum_number_of_hex_digits(1, false);
         let escaped_value = u32::from_str_radix(&escaped_value_string, 16);
         let mut is_invalid_extended_escape = false;
@@ -1691,25 +1697,9 @@ impl Scanner {
                     return None;
                 }
 
-                Some(Self::utf16_encode_as_string(escaped_value))
+                std::char::from_u32(escaped_value)
             }
         }
-    }
-
-    // Derived from the 10.1.1 UTF16Encoding of the ES6 Spec.
-    fn utf16_encode_as_string(code_point: u32) -> String {
-        assert!(code_point <= 0x10FFFF);
-
-        if code_point <= 65535 {
-            return std::char::from_u32(code_point).unwrap().to_string();
-        }
-
-        let code_unit_1 = ((code_point - 65536) / 1024) + 0xD800;
-        let code_unit_2 = ((code_point - 65536) % 1024) + 0xD800;
-
-        let mut s = std::char::from_u32(code_unit_1).unwrap().to_string();
-        s.push(std::char::from_u32(code_unit_2).unwrap());
-        s
     }
 
     /// Scans as many hexadecimal digits as are available in the text,
@@ -1800,7 +1790,12 @@ impl Scanner {
                 if allow_separator {
                     allow_separator = false;
                     is_previous_token_separator = true;
-                    result += self.text.get(start..self.pos).unwrap();
+                    result += &self
+                        .text
+                        .chars()
+                        .skip(start)
+                        .take(self.pos - start)
+                        .collect::<String>();
                 } else if is_previous_token_separator {
                     self.error(
                         diagnostic::Message::MultipleConsecutiveNumericSeparatorsNotPermitted,
@@ -1833,7 +1828,13 @@ impl Scanner {
                 Some(1),
             );
         }
-        result + self.text.get(start..self.pos).unwrap()
+        result
+            + &self
+                .text
+                .chars()
+                .skip(start)
+                .take(self.pos - start)
+                .collect::<String>()
     }
 
     fn scan_number(&mut self) -> (SyntaxKind, String) {
@@ -1878,7 +1879,7 @@ impl Scanner {
                 result += &scientific_fragment;
             }
         } else {
-            result = self.text.get(start..end).unwrap().to_string();
+            result = self.text.chars().skip(start).take(end - start).collect();
         }
 
         if decimal_fragment.is_some() || self.token_flags.contains(TokenFlags::SCIENTIFIC) {
@@ -2314,6 +2315,52 @@ mod test {
         assert_eq!(scanner.token_value().unwrap(), "some string");
         assert_eq!(scanner.scan(), SyntaxKind::Token(Token::Semicolon));
         assert_eq!(scanner.scan(), SyntaxKind::EndOfFileToken);
+    }
+
+    #[test]
+    fn string_with_escape() {
+        let mut scanner = Scanner::new(
+            ScriptTarget::ES3,
+            false,
+            LanguageVariant::Standard,
+            Some("let i = \"\\u{0}\";".to_string()),
+            Some(Box::new(|c, _length| panic!("Unexpected error: {}", c))),
+            None,
+            None,
+        );
+        assert_eq!(
+            scanner.scan(),
+            SyntaxKind::Keyword(syntax_kind::Keyword::Let)
+        );
+        assert_eq!(scanner.scan(), SyntaxKind::WhitespaceTrivia);
+        assert_eq!(scanner.scan(), SyntaxKind::Identifier);
+        assert_eq!(scanner.token_value().unwrap(), "i");
+        assert_eq!(scanner.scan(), SyntaxKind::WhitespaceTrivia);
+        assert_eq!(scanner.scan(), SyntaxKind::Token(Token::Equals));
+        assert_eq!(scanner.scan(), SyntaxKind::WhitespaceTrivia);
+        assert_eq!(scanner.scan(), SyntaxKind::StringLiteral);
+        assert_eq!(scanner.token_value().unwrap(), "\0");
+        assert_eq!(scanner.scan(), SyntaxKind::Token(Token::Semicolon));
+        assert_eq!(scanner.scan(), SyntaxKind::EndOfFileToken);
+    }
+
+    /// Tests an issue found by proptest where `scan_number_fragment` would panic.
+    #[test]
+    fn scan_number_fragment_panic() {
+        let mut scanner = Scanner::new(
+            ScriptTarget::ES3,
+            false,
+            LanguageVariant::Standard,
+            Some(r#"¡¡��¡¡A\u{0}\u{0}0A"#.to_string()),
+            None,
+            None,
+            None,
+        );
+        loop {
+            if scanner.scan() == SyntaxKind::EndOfFileToken {
+                break;
+            }
+        }
     }
 }
 
