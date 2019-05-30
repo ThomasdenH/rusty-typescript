@@ -1,9 +1,13 @@
+//! Recreates roughtly the contents of `performance.ts`. Instead of calling
+//! `enable`/`disable`, a new `Performance` can be created that the user should
+//! store themselves. It can then be used to create timers.
+
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 
 pub(crate) struct Performance {
     profiler_start: SystemTime,
-    counts: HashMap<String, usize>,
+    counts: HashMap<String, u32>,
     measures: HashMap<String, Duration>,
     marks: HashMap<String, SystemTime>,
     on_profiler_event: Option<Box<Fn(&str)>>,
@@ -18,6 +22,10 @@ impl Performance {
             marks: HashMap::new(),
             on_profiler_event,
         }
+    }
+
+    pub(crate) fn set_on_profiler_event(&mut self, on_profiler_event: Option<Box<Fn(&str)>>) {
+        self.on_profiler_event = on_profiler_event;
     }
 
     pub(crate) fn create_timer<'a>(
@@ -70,7 +78,7 @@ impl Performance {
 
     /// Gets the number of times a marker was encountered.
     /// - mark_name: The name of the mark.
-    pub(crate) fn count(&self, mark_name: &str) -> Option<usize> {
+    pub(crate) fn count(&self, mark_name: &str) -> Option<u32> {
         self.counts.get(mark_name).cloned()
     }
 
