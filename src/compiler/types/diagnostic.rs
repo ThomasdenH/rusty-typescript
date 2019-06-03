@@ -1,3 +1,5 @@
+use crate::compiler::types::node::SourceFile;
+
 type ErrorCode = usize;
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone, Copy)]
@@ -349,4 +351,27 @@ impl std::fmt::Display for Message {
     }
 }
 
-pub trait DiagnosticWithLocation {}
+pub struct DiagnosticWithLocation<'a> {
+    file: &'a SourceFile,
+    start: usize,
+    length: usize,
+    message: Message,
+}
+
+impl<'a> DiagnosticWithLocation<'a> {
+    pub fn new(
+        file: &'a SourceFile,
+        start: usize,
+        length: usize,
+        message: Message,
+    ) -> DiagnosticWithLocation<'a> {
+        assert!(start < file.get_base_node().length());
+        assert!(start + length < file.get_base_node().length());
+        DiagnosticWithLocation {
+            file,
+            start,
+            length,
+            message,
+        }
+    }
+}

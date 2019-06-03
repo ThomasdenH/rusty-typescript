@@ -1,7 +1,8 @@
 use crate::compiler::scanner::Scanner;
-use crate::compiler::types::diagnostic::DiagnosticWithLocation;
+use crate::compiler::types::diagnostic;
 use crate::compiler::types::node::{self, GetBaseNode};
 use crate::compiler::types::syntax_kind::{SyntaxKind, Token};
+use crate::compiler::types::text_range::TextRange;
 use crate::compiler::types::NodeFlags;
 use crate::compiler::types::{LanguageVariant, ScriptKind, ScriptTarget};
 use snafu::*;
@@ -47,7 +48,7 @@ pub struct Parser<'a> {
     scanner: Scanner<'a>,
 
     source_file: Option<SourceFile>,
-    parse_diagnostics: Vec<Box<dyn DiagnosticWithLocation>>,
+    parse_diagnostics: Vec<Box<dyn diagnostic::DiagnosticWithLocation>>,
     syntax_cursor: Option<Box<dyn SyntaxCursor>>,
 
     current_token: Option<SyntaxKind>,
@@ -215,6 +216,77 @@ impl<'a> Parser<'a> {
         self.next_token();
 
         Ok(Box::new(node))
+    }
+
+    fn parse_error_at_position(
+        &mut self,
+        start: usize,
+        length: usize,
+        message: diagnostic::Message,
+    ) {
+        // Don't report another error if it would just be at the same position as the last error.
+        let last_error = self.parse_diagnostics.last();
+        if last_error.map(|last| last.start != start).unwrap_or(true) {
+            self.parse_diagnostics
+                .push(diagnostic::DiagnosticWithLocation::new(
+                    self.file, start, length, message,
+                ))
+        }
+
+        // Mark that we've encountered an error.  We'll set an appropriate bit on the next
+        // node we finish so that it can't be reused incrementally.
+        self.parse_error_before_next_finished_node = true;
+    }
+
+    fn parse_error_at(&mut self, start: usize, end: usize, message: diagnostic::Message) {
+        self.parse_error_at_position(start, end - start, message);
+    }
+
+    fn parse_error_at_current_token(&mut self, message: diagnostic::Message) {
+        self.parse_error_at(self.scanner.token_pos(), self.scanner.token_pos(), message);
+    }
+
+    fn parse_error_at_range(&mut self, range: TextRange, message: diagnostic::Message) {
+        self.parse_error_at(range.start.unwrap(), range.end.unwrap(), message);
+    }
+
+    fn scan_error(&mut self, message: diagnostic::Message, length: usize) {
+        self.parse_error_at_position(self.scanner.text_pos(), length, message);
+    }
+
+    fn re_scan_greater_token(&mut self) -> SyntaxKind {
+        self.current_token = self.scanner.re_scan_greater_token();
+        return self.current_token;
+    }
+
+    fn re_scan_slash_token(&mut self) -> SyntaxKind {
+        self.current_token = self.scanner.re_scan_slash_token();
+        return self.current_token;
+    }
+
+    fn re_scan_template_token(&mut self) -> SyntaxKind {
+        self.current_token = self.scanner.re_scan_template_token();
+        return self.current_token;
+    }
+
+    fn re_scan_less_than_token(&mut self) -> SyntaxKind {
+        self.current_token = self.scanner.re_scan_less_than_token();
+        return self.current_token;
+    }
+
+    fn scan_jsx_identifier(&mut self) -> SyntaxKind {
+        self.current_token = self.scanner.scan_jsx_identifier();
+        return self.current_token;
+    }
+
+    fn scan_jsx_text(&mut self) -> SyntaxKind {
+        self.current_token = self.scanner.scan_jsx_token();
+        return self.current_token;
+    }
+
+    fn scan_jsx_attribute_value(&mut self) -> SyntaxKind {
+        self.current_token = self.scanner.scan_jsx_attribute_value();
+        return self.current_token;
     }
 }
 
