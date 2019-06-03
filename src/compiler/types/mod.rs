@@ -4,15 +4,17 @@ use num_derive::{FromPrimitive, ToPrimitive};
 use proptest_derive::*;
 
 pub mod character_codes;
-// pub mod node;
 pub mod diagnostic;
+mod modifier_flags;
+pub mod node;
 pub mod node_flags;
 pub mod pseudobigint;
 pub mod syntax_kind;
 pub mod text_range;
 pub mod textspan;
-pub mod token_flags;
+mod token_flags;
 
+pub use modifier_flags::ModifierFlags;
 pub use node_flags::NodeFlags;
 pub use pseudobigint::PseudoBigInt;
 pub use syntax_kind::SyntaxKind;
@@ -71,6 +73,63 @@ impl LanguageVariant {
         match script_kind {
             TSX | JSX | JS | JSON => LanguageVariant::JSX,
             _ => LanguageVariant::Standard,
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Hash, Debug, Clone, Copy)]
+pub enum ModuleResolutionKind {
+    Classic,
+    NodeJs,
+}
+
+#[derive(Eq, PartialEq, Hash, Debug, Clone, Copy)]
+pub enum ModuleKind {
+    None,
+    CommonJs,
+    AMD,
+    UMD,
+    System,
+    ES2015,
+    ESNext,
+}
+
+#[derive(Eq, PartialEq, Hash, Debug, Clone, Copy)]
+pub enum JsxEmit {
+    None,
+    Preserve,
+    React,
+    ReactNative,
+}
+
+#[derive(Eq, PartialEq, Hash, Debug, Clone, Copy)]
+pub enum NewLineKind {
+    CarriageReturnLineFeed,
+    LineFeed,
+}
+
+#[derive(Eq, PartialEq, Hash, Debug, Clone, Copy)]
+pub enum Extension {
+    Ts,
+    Tsx,
+    Dts,
+    Js,
+    Jsx,
+    Json,
+    TsBuildInfo,
+}
+
+impl std::fmt::Display for Extension {
+    /// Print the extension, including the preceding dot
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Extension::Ts => write!(f, ".ts"),
+            Extension::Tsx => write!(f, ".tsx"),
+            Extension::Dts => write!(f, ".d.ts"),
+            Extension::Js => write!(f, ".js"),
+            Extension::Jsx => write!(f, ".jsx"),
+            Extension::Json => write!(f, ".json"),
+            Extension::TsBuildInfo => write!(f, ".tsbuildinfo"),
         }
     }
 }
