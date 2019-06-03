@@ -348,3 +348,5 @@ impl std::fmt::Display for Message {
         }
     }
 }
+
+pub trait DiagnosticWithLocation {}

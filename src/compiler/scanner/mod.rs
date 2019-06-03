@@ -1975,7 +1975,7 @@ impl<'a> Scanner<'a> {
                     usize::from_str(self.token_value.as_ref().unwrap())
                 }
                 .map(|d| d.to_string())
-                .unwrap_or("".to_string()),
+                .unwrap_or_else(|_| "".to_string()),
             );
             SyntaxKind::NumericLiteral
         }

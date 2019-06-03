@@ -6,7 +6,7 @@ use proptest_derive::*;
 pub mod character_codes;
 pub mod diagnostic;
 mod modifier_flags;
-// pub mod node;
+pub mod node;
 pub mod node_flags;
 pub mod pseudobigint;
 pub mod syntax_kind;

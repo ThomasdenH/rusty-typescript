@@ -184,7 +184,7 @@ pub fn normalize_slashes(path: String) -> String {
 
 pub fn path_is_relative(path: &str) -> bool {
     lazy_static! {
-        static ref RE: Regex = Regex::new("^..?($|[\\/])").unwrap();
+        static ref RE: Regex = Regex::new(r"^..?($|[\\/])").unwrap();
     }
     RE.is_match(path)
 }

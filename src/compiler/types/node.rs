@@ -1,13 +1,24 @@
 use crate::compiler::types::syntax_kind::SyntaxKind;
+use crate::compiler::types::{syntax_kind, NodeFlags};
 use crate::compiler::types::{TextRange, TokenFlags};
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct BaseNode {
     text_range: TextRange,
+    pub(crate) flags: NodeFlags,
+}
+
+impl BaseNode {
+    pub fn new(pos: Option<usize>, end: Option<usize>) -> BaseNode {
+        BaseNode {
+            text_range: TextRange::from_pos_and_end(pos, end),
+            flags: NodeFlags::NONE,
+        }
+    }
 }
 
 /// A trait that gives access to the base node.
-trait GetBaseNode {
+pub trait GetBaseNode {
     fn base_node(&self) -> &BaseNode;
     fn base_node_mut(&mut self) -> &mut BaseNode;
 }
@@ -27,54 +38,91 @@ macro_rules! impl_get_base_node {
     };
 }
 
+macro_rules! impl_get_base_node_with_lifetime {
+    ($x:ident) => {
+        impl GetBaseNode for $x<'_> {
+            fn base_node(&self) -> &BaseNode {
+                &self.node
+            }
+            fn base_node_mut(&mut self) -> &mut BaseNode {
+                &mut self.node
+            }
+        }
+    };
+}
+
 trait WithSyntaxKind {
-    const SYNTAX_KIND: SyntaxKind;
+    fn kind() -> SyntaxKind;
 }
 
 macro_rules! impl_with_syntax_kind {
     ($x:ident) => {
         impl WithSyntaxKind for $x {
-            const SYNTAX_KIND: SyntaxKind = SyntaxKind::$x;
+            fn kind(&self) -> SyntaxKind {
+                SyntaxKind::$x
+            }
         }
     };
 }
 
-macro_rules! token {
+macro_rules! impl_with_syntax_kind_with_lifetime {
     ($x:ident) => {
+        impl WithSyntaxKind for $x<'_> {
+            fn kind(&self) -> SyntaxKind {
+                SyntaxKind::$x
+            }
+        }
+    };
+}
+
+pub trait Token: WithSyntaxKind + GetBaseNode + WithSyntaxKind {}
+
+macro_rules! token {
+    ($x:ident, $syntax_kind:expr) => {
         #[derive(Clone)]
         pub struct $x {
             node: BaseNode,
         }
+
+        impl $x {
+            pub fn new(node: BaseNode) -> Self {
+                $x { node }
+            }
+        }
+
         impl_get_base_node!($x);
-        impl_with_syntax_kind!($x);
+        impl WithSyntaxKind for $x {
+            fn kind(&self) -> SyntaxKind {
+                $syntax_kind
+            }
+        }
+        impl Token for $x {}
     };
 }
 
-token!(DotDotDotToken);
-token!(QuestionToken);
-token!(ExclamationToken);
-token!(ColonToken);
-token!(EqualsToken);
-token!(AsteriskToken);
-token!(EqualsGreaterThanToken);
-token!(EndOfFileToken);
-token!(ReadonlyToken);
-token!(AwaitKeywordToken);
-token!(PlusToken);
-token!(MinusToken);
-
-// Modifiers
-token!(AbstractKeyword);
-token!(AsyncKeyword);
-token!(ConstKeyword);
-token!(DeclareKeyword);
-token!(DefaultKeyword);
-token!(ExportKeyword);
-token!(PublicKeyword);
-token!(PrivateKeyword);
-token!(ProtectedKeyword);
-token!(ReadonlyKeyword);
-token!(StaticKeyword);
+token!(
+    DotDotDotToken,
+    SyntaxKind::Token(syntax_kind::Token::DotDotDot)
+);
+token!(
+    QuestionToken,
+    SyntaxKind::Token(syntax_kind::Token::Question)
+);
+token!(
+    ExclamationToken,
+    SyntaxKind::Token(syntax_kind::Token::Exclamation)
+);
+token!(ColonToken, SyntaxKind::Token(syntax_kind::Token::Colon));
+token!(EqualsToken, SyntaxKind::Token(syntax_kind::Token::Equals));
+token!(
+    AsteriskToken,
+    SyntaxKind::Token(syntax_kind::Token::Asterisk)
+);
+token!(
+    EqualsGreaterThanToken,
+    SyntaxKind::Token(syntax_kind::Token::EqualsGreaterThan)
+);
+token!(EndOfFileToken, SyntaxKind::EndOfFileToken);
 
 pub trait Declaration {}
 macro_rules! impl_declaration {
@@ -169,11 +217,11 @@ pub enum EntityName {
 
 pub struct Decorator<'a> {
     node: BaseNode,
-    parent: &'a NamedDeclaration,
-    expression: Box<LeftHandSideExpression>,
+    parent: &'a dyn NamedDeclaration,
+    expression: Box<dyn LeftHandSideExpression>,
 }
-impl_get_base_node!(Decorator);
-impl_with_syntax_kind!(Decorator);
+impl_get_base_node_with_lifetime!(Decorator);
+impl_with_syntax_kind_with_lifetime!(Decorator);
 
 pub enum TextSourceNode {
     Identifier(Identifier),
@@ -211,13 +259,26 @@ pub struct NumericLiteral {
 impl_get_base_node!(NumericLiteral);
 impl_with_syntax_kind!(NumericLiteral);
 
+pub struct VariableDeclaration {
+    base_node: BaseNode,
+    name: BindingName,
+}
+impl_get_base_node!(NoSubstitutionTemplateLiteral);
+impl_with_syntax_kind!(NoSubstitutionTemplateLiteral);
+
+impl NamedDeclaration for VariableDeclaration {
+    fn name(&self) -> &DeclarationName {
+        &self.name
+    }
+}
+
 pub struct ComputedPropertyName<'a> {
     parent: &'a dyn Declaration,
     node: BaseNode,
-    expression: Box<Expression>,
+    expression: Box<dyn Expression>,
 }
-impl_get_base_node!(ComputedPropertyName);
-impl_with_syntax_kind!(ComputedPropertyName);
+impl_get_base_node_with_lifetime!(ComputedPropertyName);
+impl_with_syntax_kind_with_lifetime!(ComputedPropertyName);
 
 pub enum ArrayBindingElement<'a> {
     BindingElement(BindingElement<'a>),
@@ -229,8 +290,8 @@ pub struct ObjectBindingPattern<'a> {
     parent: &'a ObjectBindingPatternParent,
     elements: Vec<ArrayBindingElement<'a>>,
 }
-impl_get_base_node!(ObjectBindingPattern);
-impl_with_syntax_kind!(ObjectBindingPattern);
+impl_get_base_node_with_lifetime!(ObjectBindingPattern);
+impl_with_syntax_kind_with_lifetime!(ObjectBindingPattern);
 
 pub enum ObjectBindingPatternParent {
     VariableDeclaration(VariableDeclaration),
@@ -243,8 +304,8 @@ pub struct ArrayBindingPattern<'a> {
     parent: &'a ArrayBindingPatternParent,
     elements: Vec<ArrayBindingElement>,
 }
-impl_get_base_node!(ArrayBindingPattern);
-impl_with_syntax_kind!(ArrayBindingPattern);
+impl_get_base_node_with_lifetime!(ArrayBindingPattern);
+impl_with_syntax_kind_with_lifetime!(ArrayBindingPattern);
 
 pub enum ArrayBindingPatternParent {
     VariableDeclaration(VariableDeclaration),
@@ -270,8 +331,8 @@ pub struct BindingElement<'a> {
     name: BindingName,
     initializer: Expression,
 }
-impl_get_base_node!(BindingElement);
-impl_with_syntax_kind!(BindingElement);
+impl_get_base_node_with_lifetime!(BindingElement);
+impl_with_syntax_kind_with_lifetime!(BindingElement);
 
 pub enum PropertyName<'a> {
     Identifier(Identifier),
@@ -279,3 +340,9 @@ pub enum PropertyName<'a> {
     NumericLiteral(NumericLiteral),
     ComputedPropertyName(ComputedPropertyName<'a>),
 }
+
+pub struct SourceFile {
+    node: BaseNode,
+}
+impl_get_base_node!(SourceFile);
+impl_declaration!(SourceFile);

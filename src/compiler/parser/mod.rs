@@ -1,6 +1,10 @@
 use crate::compiler::scanner::Scanner;
-use crate::compiler::types::syntax_kind::{LanguageVariant, ScriptKind, ScriptTarget, SyntaxKind};
+use crate::compiler::types::diagnostic::DiagnosticWithLocation;
+use crate::compiler::types::node::{self, GetBaseNode};
+use crate::compiler::types::syntax_kind::{SyntaxKind, Token};
 use crate::compiler::types::NodeFlags;
+use crate::compiler::types::{LanguageVariant, ScriptKind, ScriptTarget};
+use snafu::*;
 use std::collections::HashMap;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -37,38 +41,14 @@ pub(crate) fn is_js_doc_like_text(text: &str, start: usize) -> bool {
     c.next() == Some('*') && c.next() == Some('*') && c.next() != Some('/')
 }
 
-pub trait Node {
-    fn for_each_child<T, CbNode, CbNodes>(
-        &mut self,
-        cb_node: CbNode,
-        cb_nodes: Option<CbNodes>,
-    ) -> Option<T>
-    where
-        CbNode: Fn(&mut Node) -> Option<T>,
-        CbNodes: Fn(&mut [Node]) -> Option<T>;
-}
-
-pub trait SourceFile {}
-
-pub struct JsonSourceFile {}
-
-pub trait IncrementalNode: Node {
-    fn has_been_incrementally_parsed(&self) -> bool;
-}
-
-pub trait SyntaxCursor {
-    fn current_node(&self, position: usize) -> IncrementalNode;
-}
-
-#[derive(Eq, PartialEq, Hash, Debug, Clone)]
-pub struct DiagnosticWithLocation {}
+pub trait SyntaxCursor {}
 
 pub struct Parser<'a> {
     scanner: Scanner<'a>,
 
-    source_file: Option<Box<SourceFile>>,
-    parse_diagnostics: Vec<DiagnosticWithLocation>,
-    syntax_cursor: Option<Box<SyntaxCursor>>,
+    source_file: Option<SourceFile>,
+    parse_diagnostics: Vec<Box<dyn DiagnosticWithLocation>>,
+    syntax_cursor: Option<Box<dyn SyntaxCursor>>,
 
     current_token: Option<SyntaxKind>,
     source_text: String,
@@ -195,9 +175,57 @@ impl<'a> Parser<'a> {
     fn token(&self) -> Option<SyntaxKind> {
         self.current_token
     }
+
+    fn next_token(&mut self) -> Option<SyntaxKind> {
+        self.current_token = Some(self.scanner.scan());
+        self.current_token
+    }
+
+    fn can_parse_semicolon(&self) -> bool {
+        self.token() == Some(SyntaxKind::Token(Token::Semicolon))
+            || self.token() == Some(SyntaxKind::Token(Token::CloseBrace))
+            || self.token() == Some(SyntaxKind::EndOfFileToken)
+            || self.scanner.has_preceding_line_break()
+    }
+
+    fn parse_token_node(&mut self) -> Result<Box<dyn node::Token>, ParseTokenNodeError> {
+        let base_node = node::BaseNode::new(
+            Some(self.scanner.start_pos()),
+            Some(self.scanner.start_pos()),
+        );
+
+        let mut node = if let Some(kind) = self.token() {
+            match kind {
+                SyntaxKind::Token(Token::DotDotDot) => node::DotDotDotToken::new(base_node),
+                SyntaxKind::Token(token) => {
+                    return Err(ParseTokenNodeError::TokenCannotBeMadeIntoANode { token })
+                }
+                kind => return Err(ParseTokenNodeError::NotAToken { kind }),
+            }
+        } else {
+            return Err(ParseTokenNodeError::NoToken);
+        };
+
+        node.base_node_mut().flags = self.context_flags;
+        if self.parse_error_before_next_finished_node {
+            self.parse_error_before_next_finished_node = false;
+            node.base_node_mut().flags |= NodeFlags::THIS_NODE_HAS_ERROR;
+        }
+
+        self.next_token();
+
+        Ok(Box::new(node))
+    }
 }
 
-pub struct SourceFile {
-    text: String,
-    bind_diagnostics
+#[derive(Clone, Hash, Debug, Snafu)]
+enum ParseTokenNodeError {
+    #[snafu(display("the syntaxkind is not a token: {:?}", kind))]
+    NotAToken { kind: SyntaxKind },
+    #[snafu(display("the token cannot currently be made into a node: {:?}", token))]
+    TokenCannotBeMadeIntoANode {
+        token: crate::compiler::types::syntax_kind::Token,
+    },
+    #[snafu(display("the parser currently has no token from the scanner"))]
+    NoToken,
 }
