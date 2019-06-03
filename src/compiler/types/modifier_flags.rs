@@ -16,26 +16,33 @@ bitflags! {
         const CONST = 1 << 11;
         const HAS_COMPUTED_FLAGS = 1 << 29;
 
-        const ACCESSIBILITY_MODIFIER = Self::PUBLIC | Self::PRIVATE | Self::PROTECTED;
+        const ACCESSIBILITY_MODIFIER = Self::PUBLIC.bits
+            | Self::PRIVATE.bits
+            | Self::PROTECTED.bits;
 
-        const PARAMETER_PROPERTY_MODIFIER = Self::ACCESSIBILITY_MODIFIER | Self::READONLY;
-        const NON_PUBLIC_ACCESSIBILITY_MODIFIER = Self::PRIVATE | Self::PROTECTED;
+        const PARAMETER_PROPERTY_MODIFIER = Self::ACCESSIBILITY_MODIFIER.bits
+            | Self::READONLY.bits;
+        const NON_PUBLIC_ACCESSIBILITY_MODIFIER = Self::PRIVATE.bits
+            | Self::PROTECTED.bits;
 
-        const TYPE_SCRIPT_MODIFIER = Self::AMBIENT | Self::PUBLIC | Self::PRIVATE
-            | Self::PROTECTED
-            | Self::ABSTRACT
-            | Self::CONST;
-        const EXPORT_DEFAULT = Self::Export | Self::DEFAULT;
-        const ALL = Self::EXPORT
-            | Self::AMBIENT
-            | Self::PUBLIC
-            | Self::PRIVATE
-            | Self::PROTECTED
-            | Self::STATIC
-            | Self::READONLY
-            | Self::ABSTRACT
-            | Self::ASYNC
-            | Self::DEFAULT
-            | Self::CONST;
+        const TYPE_SCRIPT_MODIFIER = Self::AMBIENT.bits
+            | Self::PUBLIC.bits
+            | Self::PRIVATE.bits
+            | Self::PROTECTED.bits
+            | Self::ABSTRACT.bits
+            | Self::CONST.bits;
+        const EXPORT_DEFAULT = Self::EXPORT.bits
+            | Self::DEFAULT.bits;
+        const ALL = Self::EXPORT.bits
+            | Self::AMBIENT.bits
+            | Self::PUBLIC.bits
+            | Self::PRIVATE.bits
+            | Self::PROTECTED.bits
+            | Self::STATIC.bits
+            | Self::READONLY.bits
+            | Self::ABSTRACT.bits
+            | Self::ASYNC.bits
+            | Self::DEFAULT.bits
+            | Self::CONST.bits;
     }
 }

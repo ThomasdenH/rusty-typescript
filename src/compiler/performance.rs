@@ -28,8 +28,8 @@ impl Performance {
         self.on_profiler_event = on_profiler_event;
     }
 
-    pub(crate) fn create_timer<'a>(
-        &'a mut self,
+    pub(crate) fn create_timer(
+        &mut self,
         measure_name: String,
         start_mark_name: String,
         end_mark_name: String,
@@ -45,8 +45,10 @@ impl Performance {
 
     pub(crate) fn mark(&mut self, mark_name: String) {
         self.marks.insert(mark_name.clone(), SystemTime::now());
-        let current_count = self.counts.get(&mark_name).unwrap_or(&0);
-        self.on_profiler_event.as_ref().map(|f| f(&mark_name));
+        let current_count = *self.counts.get(&mark_name).unwrap_or(&0);
+        if let Some(f) = self.on_profiler_event.as_ref() {
+            f(&mark_name);
+        }
         self.counts.insert(mark_name, current_count + 1);
     }
 

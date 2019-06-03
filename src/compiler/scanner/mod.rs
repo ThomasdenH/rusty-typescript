@@ -482,16 +482,15 @@ impl Scanner {
         {
             let ch = self.text.chars().nth(self.pos);
 
-            if (self.pos + *MERGE_CONFLICT_MARKER_LENGTH) < self.text.len() {
-                if self
+            if (self.pos + *MERGE_CONFLICT_MARKER_LENGTH) < self.text.len()
+                && self
                     .text
                     .chars()
                     .skip(self.pos)
                     .take(*MERGE_CONFLICT_MARKER_LENGTH)
                     .any(|c| c != ch.unwrap())
-                {
-                    return false;
-                }
+            {
+                return false;
             }
 
             return ch == Some('=')
@@ -556,7 +555,7 @@ impl Scanner {
                     .text
                     .chars()
                     .nth(self.pos)
-                    .map(|c| is_white_space_single_line(c))
+                    .map(is_white_space_single_line)
                     .unwrap_or(false)
                 {
                     self.pos += 1;
@@ -646,10 +645,10 @@ impl Scanner {
             );
             let identifier = self.get_identifier_token();
             self.token = identifier.into();
-            return identifier.into();
+            identifier.into()
         } else {
             self.token = SyntaxKind::Unknown;
-            return syntax_kind::JsDoc::Unknown;
+            syntax_kind::JsDoc::Unknown
         }
     }
 
@@ -665,7 +664,7 @@ impl Scanner {
             return identifier;
         }
         self.token = syntax_kind::Identifier::identifier().into();
-        return syntax_kind::Identifier::identifier();
+        syntax_kind::Identifier::identifier()
     }
 
     pub fn scan(&mut self) -> SyntaxKind {
@@ -734,7 +733,7 @@ impl Scanner {
                                 .text
                                 .chars()
                                 .nth(self.pos)
-                                .map(|c| is_white_space_single_line(c))
+                                .map(is_white_space_single_line)
                                 .unwrap_or(false)
                             {
                                 self.pos += 1;
@@ -1334,7 +1333,7 @@ impl Scanner {
                 Some(1),
             );
         }
-        return value;
+        value
     }
 
     pub(crate) fn is_shebang_trivia(&self) -> bool {
@@ -1428,7 +1427,7 @@ impl Scanner {
                 }
 
                 let ch = self.text.chars().nth(p);
-                if ch.map(|c| is_line_break(c)).unwrap_or(false) {
+                if ch.map(is_line_break).unwrap_or(false) {
                     self.token_flags |= TokenFlags::UNTERMINATED;
                     self.error(
                         diagnostic::Message::UnterminatedRegularExpressionLiteral,
@@ -1710,7 +1709,7 @@ impl Scanner {
         match escaped_value {
             Err(_) => {
                 self.error(diagnostic::Message::HexadecimalDigitExpected, None, None);
-                return None;
+                None
             }
             Ok(escaped_value) => {
                 if escaped_value > 0x10FFF {
