@@ -279,5 +279,3 @@ pub enum PropertyName<'a> {
     NumericLiteral(NumericLiteral),
     ComputedPropertyName(ComputedPropertyName<'a>),
 }
-
-
