@@ -10,11 +10,11 @@ pub(crate) struct Performance {
     counts: HashMap<String, u32>,
     measures: HashMap<String, Duration>,
     marks: HashMap<String, SystemTime>,
-    on_profiler_event: Option<Box<Fn(&str)>>,
+    on_profiler_event: Option<Box<dyn Fn(&str)>>,
 }
 
 impl Performance {
-    pub(crate) fn new(on_profiler_event: Option<Box<Fn(&str)>>) -> Performance {
+    pub(crate) fn new(on_profiler_event: Option<Box<dyn Fn(&str)>>) -> Performance {
         Performance {
             profiler_start: SystemTime::now(),
             counts: HashMap::new(),
@@ -24,7 +24,7 @@ impl Performance {
         }
     }
 
-    pub(crate) fn set_on_profiler_event(&mut self, on_profiler_event: Option<Box<Fn(&str)>>) {
+    pub(crate) fn set_on_profiler_event(&mut self, on_profiler_event: Option<Box<dyn Fn(&str)>>) {
         self.on_profiler_event = on_profiler_event;
     }
 

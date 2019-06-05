@@ -151,7 +151,7 @@ pub struct Scanner<'a> {
     skip_trivia: bool,
 }
 
-pub type ErrorCallback = (Fn(diagnostic::Message, usize));
+pub type ErrorCallback = (dyn Fn(diagnostic::Message, usize));
 
 impl<'a> Scanner<'a> {
     pub fn new(

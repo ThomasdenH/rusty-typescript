@@ -1,7 +1,8 @@
 use crate::compiler::scanner::Scanner;
 use crate::compiler::types::diagnostic;
+use crate::compiler::types::node::SourceFile;
 use crate::compiler::types::node::{self, GetBaseNode};
-use crate::compiler::types::syntax_kind::{SyntaxKind, Token};
+use crate::compiler::types::syntax_kind::{Keyword, SyntaxKind, Token};
 use crate::compiler::types::text_range::TextRange;
 use crate::compiler::types::NodeFlags;
 use crate::compiler::types::{LanguageVariant, ScriptKind, ScriptTarget};
@@ -48,7 +49,7 @@ pub struct Parser<'a> {
     scanner: Scanner<'a>,
 
     source_file: Option<SourceFile>,
-    parse_diagnostics: Vec<Box<dyn diagnostic::DiagnosticWithLocation>>,
+    parse_diagnostics: Vec<diagnostic::DiagnosticWithLocation<'a>>,
     syntax_cursor: Option<Box<dyn SyntaxCursor>>,
 
     current_token: Option<SyntaxKind>,
@@ -173,6 +174,21 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn parse_source_file(
+        file_name: String,
+        source_text: String,
+        language_version: ScriptTarget,
+        syntax_cursor: Option<Box<dyn SyntaxCursor>>,
+        set_parent_nodes: bool,
+        script_kind: Option<ScriptKind>,
+    ) -> SourceFile {
+        unimplemented!();
+    }
+
+    fn node_pos(&self) -> usize {
+        self.scanner.start_pos()
+    }
+
     fn token(&self) -> Option<SyntaxKind> {
         self.current_token
     }
@@ -198,6 +214,7 @@ impl<'a> Parser<'a> {
         let mut node = if let Some(kind) = self.token() {
             match kind {
                 SyntaxKind::Token(Token::DotDotDot) => node::DotDotDotToken::new(base_node),
+                SyntaxKind::EndOfFileToken => node::EndOfFileToken::new(base_node),
                 SyntaxKind::Token(token) => {
                     return Err(ParseTokenNodeError::TokenCannotBeMadeIntoANode { token })
                 }
@@ -218,6 +235,36 @@ impl<'a> Parser<'a> {
         Ok(Box::new(node))
     }
 
+    fn parse_expected(
+        &mut self,
+        kind: SyntaxKind,
+        message: Option<diagnostic::Message>,
+        should_advance: bool,
+    ) -> bool {
+        if self.token() == kind {
+            if should_advance {
+                self.next_token();
+            }
+            true
+        } else {
+            self.parse_error_at_current_token(message.unwrap_or_else(|| {
+                diagnostic::Message::Expected {
+                    item: kind.to_string(),
+                }
+            }));
+            false
+        }
+    }
+
+    fn parse_optional(&mut self, t: SyntaxKind) -> bool {
+        if self.token() == t {
+            self.next_token();
+            true
+        } else {
+            false
+        }
+    }
+
     fn parse_error_at_position(
         &mut self,
         start: usize,
@@ -236,6 +283,26 @@ impl<'a> Parser<'a> {
         // Mark that we've encountered an error.  We'll set an appropriate bit on the next
         // node we finish so that it can't be reused incrementally.
         self.parse_error_before_next_finished_node = true;
+    }
+
+    fn is_in_context(&self, flags: NodeFlags) -> bool {
+        self.context_flags.includes(flags)
+    }
+
+    fn is_in_yield_context(&self) -> bool {
+        self.is_in_context(NodeFlags::YIELD_CONTEXT)
+    }
+
+    fn is_in_disallow_in_context(&self) -> bool {
+        self.is_in_context(NodeFlags::DISALLOW_IN_CONTEXT)
+    }
+
+    fn is_in_decorator_context(&self) -> bool {
+        self.is_in_context(NodeFlags::DECORATOR)
+    }
+
+    fn is_in_await_context(&self) -> bool {
+        self.is_in_context(NodeFlags::AWAIT)
     }
 
     fn parse_error_at(&mut self, start: usize, end: usize, message: diagnostic::Message) {
@@ -288,6 +355,46 @@ impl<'a> Parser<'a> {
         self.current_token = self.scanner.scan_jsx_attribute_value();
         return self.current_token;
     }
+
+    fn is_identifier(&self) -> bool {
+        if self.token() == SyntaxKind::Identifier {
+            true
+        } else if self.token() == Keyword::Yield.into() && self.is_in_yield_context() {
+            false
+        } else if self.token() == Keyword::Await.into() && self.is_in_await_context() {
+            false
+        } else {
+            !self.token().is_reserved_word()
+        }
+    }
+
+    fn intern_identifier(&mut self, text: String) -> &str {
+        if let Some(identifier) = self.identifiers.get(&text) {
+            identifier
+        } else {
+            let identifier = text.clone();
+            self.identifiers.insert(text, identifier);
+            &identifier
+        }
+    }
+
+    fn is_literal_property_name(&self) -> bool {
+        self.token().is_identifier_or_keyword()
+            || self.token() == SyntaxKind::StringLiteral
+            || self.token() == SyntaxKind::NumericLiteral
+    }
+
+    fn can_follow_modifier(&self) -> bool {
+        self.token() == Token::OpenBracket.into()
+            || self.token() == Token::OpenBrace.into()
+            || self.token() == Token::Asterisk.into()
+            || self.token() == Token::DotDotDot.into()
+            || self.is_literal_property_name()
+    }
+}
+
+pub(crate) fn is_declaration_filename(file_name: &str) -> bool {
+    file_extension_is(file_name, Extension.Dts)
 }
 
 #[derive(Clone, Hash, Debug, Snafu)]
